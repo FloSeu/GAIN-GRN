@@ -263,19 +263,20 @@ def match_gain2subdomain_template(gain_idx, template_anchors, gesamt_folder, pen
     actual_anchors = find_anchor_matches(target_gesamt_file, template_anchors, debug=debug)
     if debug: print(f"[DEBUG]: return find_anchor_matches: {actual_anchors = }")
     all_dist = {k:v[1] for k,v in actual_anchors.items() } #{'H1': (653, 1.04) , ...}
+    if debug: print(f"[DEBUG]: return find_anchor_matches: {all_dist = }") #{'S1': 4.56, 'S2': 2.09, ...}
     # From the anchor-residue distances
     # Fill a matrix with the individual distances, assign unmatched anchors a pre-set penalty value
     distances = np.full(shape=(n_anch), fill_value=penalty)
-    for i, sse in enumerate(template_anchors.values()):
+    for i, sse in enumerate(template_anchors.keys()):
         if debug: print(f"[DEBUG]: match_gain2subdomain_template: {i = }, {sse = }")
         if sse in all_dist.keys():
             if all_dist[sse] is not None:
                 distances[i] = all_dist[sse]
-            #print(all_dist[sse])
-            for i,val in enumerate(distances):
-                if penalty is not None and val > penalty: 
-                    distances[i] = penalty
-
+        # Cap the distance maximum to the penalty, if specified
+        for i,val in enumerate(distances):
+            if penalty is not None and val > penalty: 
+                distances[i] = penalty
+    if debug: print(f"[DEBUG]: return find_anchor_matches: Final distances to return : \n\t{distances = }")
     return distances, actual_anchors
 
 def find_anchor_matches(file, anchor_dict,  isTarget=False, debug=False):
