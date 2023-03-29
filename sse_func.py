@@ -108,7 +108,7 @@ def read_multi_seq(file):
 
     return sequences
 
-def read_alignment(alignment, cutoff):
+def read_alignment(alignment, cutoff=-1):
     '''
     Load all the data from an alignment into a matrix, stopping at the cutoff column
     
@@ -218,23 +218,19 @@ def detect_signchange(signal_array, exclude_zero=False, check=False):
         boundaries :   np.array
             An array with the indices of the detected sign changes
     '''
-    asign = np.sign(signal_array)
-    sz = asign == 0
+    asign = np.sign(signal_array)   # -1 where val is negative, 0 where val is zero, 1 where val is positive.
+    sz = asign == 0                 # A boolean list where True means that asign is zero
 
-    if exclude_zero == True:
-        #  Exclude where the value is EXACTLY zero, 0 has an unique sign [-x,0,x]
+    if exclude_zero == True:        #  Exclude where the value is EXACTLY zero, 0 has an unique sign [-x,0,x]
         while sz.any(): 
-
             asign[sz] = np.roll(asign, 1)[sz]
             sz = asign == 0
-
+    
     signchange = ((np.roll(asign, 1) - asign) != 0).astype(int)
     boundaries = np.asarray(signchange != 0).nonzero()[0]
-
     if boundaries.shape[0] == 0:
         print("WARNING: No boundaries detected!")
         return None
-
     # CHECK:
     # Special case. If the first and last value of the array have a different sign,
     # boundaries[0] = 0, which should be discarded depending on the signal. 
@@ -362,10 +358,12 @@ def find_boundaries(sse_dict, seq_len, bracket_size=50, domain_threshold=50, coi
                 helix_end += 1 # go right to find the end of the last Subdomain A Helix
                 if scored_seq[helix_end] != -1:
                     break
-
+        nocoil = True
+        if coil_weight != 0:
+            nocoil = False
         # Final sanity check to see if there are any SSE left in the interval between helix_end and sheet_start
         #if np.count_nonzero(scored_seq[helix_end+1:sheet_start]) > 1 : # This threw a warning when coil_weight != 0
-        if 1 in scored_seq[helix_end+1:sheet_start]:
+        if not nocoil and 1 in scored_seq[helix_end+1:sheet_start]:
             print("[WARNING] sse_func.find_boundaries : "
                 "There are still secondary-structure associated residues within the Subdomain connecting loop. Please check if this is within limits:\n"
                 f"{scored_seq[helix_end+1:sheet_start]}")
@@ -428,12 +426,13 @@ def count_domain_sses(domain_start, domain_end, tuple_list=None, spacing=1, mini
     if sse_bool is None:
         parsed_sses = []
         #print(f"[DEBUG] sse_func.count_domain_sses : \n\t{tuple_list = } \n\t{domain_start = } {domain_end = }")
+        # First, check if the SSE limits exceed the provided Domain boundary (sort of a sanity check)
         for sse in tuple_list:
             if sse[0] >= domain_start and sse[1] <= domain_end:
                 #print(f"[DEBUG] sse_func.count_domain_sses : {sse = }")
                 parsed_sses.append(sse)
             
-        sse_bool = np.zeros([domain_end+1])
+        sse_bool = np.zeros(shape=[domain_end])
         for element_tuple in parsed_sses:
             sse_bool[element_tuple[0]:element_tuple[1]+1] = 1
             #print(f"[DEBUG] sse_func.count_domain_sses : {element_tuple = }")
@@ -443,7 +442,6 @@ def count_domain_sses(domain_start, domain_end, tuple_list=None, spacing=1, mini
     else:
         # Truncate the SSE BOOL by setting everything outside the boundaries to zero.
         sse_bool[:domain_start] = 0
-        sse_bool[domain_end:] = 0
     if spacing != 0:
         sse_signal = np.convolve(sse_bool, np.ones([spacing+1]), mode='same')
     else:
@@ -477,6 +475,7 @@ def count_domain_sses(domain_start, domain_end, tuple_list=None, spacing=1, mini
                                found_sses[i,0]+np.nonzero(bool_element)[0][-1] ]) 
         break_residues.append(breaks)
     #print(f"DEBUG: After adjusting:\n{found_sses}")
+    # ADJUST TO MATCH TO ONE-INDEXED ARRAY AS PROVIDED
     #print(f"[DEBUG] sse_func.count_domain_sses : \n\t Final filtered SSES {np.asarray(filtered_sses) = }, \n {np.asarray(break_residues,dtype=object) = }")
     return np.asarray(filtered_sses), break_residues
 
@@ -622,13 +621,13 @@ def get_indices(name, sequence, alignment_file, aln_cutoff, alignment_dict=None,
         try: 
             aln_start_res = find_the_start(alignment_dict[nam], sequence) 
             # Finds the first index matching the sequence end and outputs the index
-            print(f"Found the start! {aln_start_res = }")#\n {align_seq = }")
+            #print(f"Found the start! {aln_start_res = }")#\n {align_seq = }")
         except: 
             print("Did not find the Sequence! - No start. Unknown ERROR!")
             return None
     
     align_index = aln_start_res 
-    print("".join(sequence), len(sequence))
+    #print("".join(sequence), len(sequence))
     for i,residue in enumerate(sequence):   # For each residue, enter the While loop
         #print("[DEBUG] current residue:", i, residue, "@", align_index)
         # If the current residue is truncated, skip to the next one.
@@ -637,7 +636,7 @@ def get_indices(name, sequence, alignment_file, aln_cutoff, alignment_dict=None,
             print(f"NOTE: Skipping truncated residue @ {residue}{i+1}")
             continue
 
-        while True:                         # To find the residue
+        while align_index < len(align_seq):                         # True ; To find the residue
             if residue == align_seq[align_index]:
                 mapper[i] = align_index     # If it is found, note the index
                 align_index += 1            # advance the index to avoid double counted identical resiudes (i.e. "EEE")

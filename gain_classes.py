@@ -141,7 +141,7 @@ class GainCollection:
         anchor_hist = np.zeros([aln_cutoff])
         subdomain_boundaries = []
         # Create a GainDomain instance for each sequence file contained in the list
-        progressbar = tqdm(total=len(sequences))
+        #progressbar = tqdm(total=len(sequences))
         invalid_count = 0
         for i,seq_tup in enumerate(sequences):
 
@@ -152,7 +152,7 @@ class GainCollection:
                 print(f"Stride file not found for {name}")
             if len(explicit_stride) > 1:
                 print(f"WARNING: AMBIGUITY in STRIDE files: {explicit_stride}") 
-
+            #print("DEBUG:", name)
             newGain = GainDomain(alignment_file = alignment_file, 
                                   aln_cutoff = aln_cutoff,
                                   quality = quality,
@@ -183,7 +183,7 @@ class GainCollection:
             else:
                 invalid_count += 1
 
-            progressbar.update(1)
+            #progressbar.update(1)
         
         print(f"Completed collection with {invalid_count} invalid structures.")
         # Kick out empty items from the Collection
@@ -203,7 +203,7 @@ class GainCollection:
         self.alignment_length = aln_cutoff
         self.gps_minus_one_column = gps_index
 
-        progressbar.close()
+        #progressbar.close()
 
     def print_gps(self):
         '''
@@ -611,9 +611,11 @@ class GainDomain:
                                                                          self.end,
                                                                          self.sse_sequence,
                                                                          stride_outlier_mode=stride_outlier_mode)
-            self.sda_helices = np.subtract(alpha, self.start)
+            diff = self.start-1
+            if diff < 0: diff = 0
+            self.sda_helices = np.subtract(alpha, diff)
             #print(f"[DEBUG] gain_classes.GainDomain : {alpha = } ,{self.sda_helices = }")
-            self.sdb_sheets = np.subtract(beta, self.start)
+            self.sdb_sheets = np.subtract(beta, diff)
             self.a_breaks = a_breaks
             self.b_breaks = b_breaks
             #print(f"{a_breaks = }, \n {self.a_breaks = }")
@@ -670,7 +672,7 @@ class GainDomain:
     
     #### GainDomain METHODS
 
-    def plot_profile(self, outdir=None, savename=None):
+    def plot_profile(self, outdir=None, savename=None, noshow=True):
         '''
         Plots the SSE profile and quality profile of the GainDomain. Can be saved into {outdir}
         Also denotes whether this object is a GAIN domain or not.
@@ -737,10 +739,11 @@ class GainDomain:
             savename = savename.replace(":","") # PATCH FOR RARE SPECIAL CHARACTER ":"
         if savename is not None:
             plt.savefig(savename, bbox_inches='tight',dpi=150)
-        plt.show()
+        if not noshow:
+            plt.show()
         plt.close(fig)
     
-    def plot_helicality(self, bracket_size=30, domain_threshold=20, coil_weight=0, savename=None):
+    def plot_helicality(self, bracket_size=30, domain_threshold=20, coil_weight=0, savename=None, debug=False, noshow=True):
         '''
         Plots the SSE profile used for detecting the subdomains. All parameters should be consistent with the ones
         used during actual detection of the GAIN domain
@@ -782,8 +785,10 @@ class GainDomain:
         
         # Smooth the SSE signal with np.convolve 
         signal = np.convolve(scored_seq, np.ones([bracket_size]), mode='same')
+        if debug:
+            print(signal)
         boundaries = sse_func.detect_signchange(signal, exclude_zero=True)
-        print(boundaries)
+        #print(boundaries)
 
         # Initialize Figure
         fig = plt.figure(figsize=[8,2])
@@ -798,11 +803,15 @@ class GainDomain:
                          np.zeros([self.end]),
                         color='dodgerblue',
                         alpha=0.2)
-        for b in boundaries:
-            plt.vlines(b,-20,20, color='gray', linestyle='dashed', linewidth=1)
+        if boundaries is not None:
+            for b in boundaries:
+                plt.vlines(b,-20,20, color='gray', linestyle='dashed', linewidth=1)
         plt.vlines(self.subdomain_boundary, -30, 30, color='black', linewidth=1.5)
         if savename != None:
             plt.savefig(savename, dpi=300, bbox_inches='tight')
+        if not noshow:
+            plt.show()
+        plt.close(fig)
 
     def write_sequence(self, savename):
         '''
@@ -821,7 +830,7 @@ class GainDomain:
 
     #### CREATING THE NOMENCLATURE
 
-    def create_indexing(self, anchors, anchor_occupation, anchor_dict, outdir=None, offset=0, silent=False, split_mode='single'):
+    def create_indexing(self, anchors, anchor_occupation, anchor_dict, outdir=None, offset=0, silent=False, split_mode='single',debug=False):
         ''' 
         Makes the indexing list, this is NOT automatically generated, since we do not need this for the base dataset
         Prints out the final list and writes it to file if outdir is specified
@@ -834,6 +843,10 @@ class GainDomain:
             List of Occupation values corresponding to each anchor for resolving ambiguity conflicts
         anchor_dict : dict, required
             Dictionary where each anchor index is assigned a name (H or S followed by a greek letter for enumeration)
+        offfset : int,  optional (default = 0)
+            An offsset to be incorporated (i.e. for offsetting model PDBs against UniProt entries)
+        silent : bool, optional (default = False)
+            opt in to run wihtout so much info.
         outdir : str, optional
             Output directory where the output TXT is going to be written as {self.name}.txt
 
@@ -845,6 +858,8 @@ class GainDomain:
             A dictionary containing the XX.50 Residue for each assigned SSE
         named_residue_dir : dict
             A dictionary mapping individual consensus labels to their respective position.
+        unindexed : list
+            A list of detected SSE that remain unindexed.
         '''
         # recurring functional blocks used within this function
 
@@ -914,7 +929,8 @@ class GainDomain:
                     prority_mode = False
 
             if priority_mode == True:
-                print(f"DEBUG gain_classes.disambiguate_anchors : no break found between anchors, will just overwrite.")
+                if not silent: 
+                    print(f"DEBUG gain_classes.disambiguate_anchors : no break found between anchors, will just overwrite.")
                 if new_anchor_weight > stored_anchor_weight:
                     name_list, cast_values = create_name_list(sse, new_res, anchor_dict[self.alignment_indices[new_res]])
                 else: 
@@ -965,7 +981,7 @@ class GainDomain:
                 seg_stored = terminate(sse, stored_res, adjusted_break_residues)
                 seg_new = terminate(sse, new_res, adjusted_break_residues)
 
-            print(f"[NOTE] disambiguate_anchors: Split the segment into: {seg_stored = }, {seg_new = }")
+            if not silent: print(f"[NOTE] disambiguate_anchors: Split the segment into: {seg_stored = }, {seg_new = }")
             stored_name_list, stored_cast_values = create_name_list(seg_stored, stored_res, anchor_dict[self.alignment_indices[stored_res]])
             new_name_list, new_cast_values = create_name_list(seg_new, new_res, anchor_dict[self.alignment_indices[new_res]])
 
@@ -986,38 +1002,50 @@ class GainDomain:
         indexing_dir = {}
         indexing_centers = {}
         named_residue_dir = {}
-
+        unindexed = []
         # One-indexed Indexing list for each residue, mapping for the actual residue index
         nom_list = np.full([self.end+1], fill_value='      ', dtype='<U7')
         breaks = [self.a_breaks, self.b_breaks]
-        print(f"{breaks = }")
+        if not silent: print(f"{breaks = }")
         for i,typus in enumerate([self.sda_helices, self.sdb_sheets]): # Both types will be indexed separately
             # Where the corresponding breaks are located
             type_breaks = breaks[i]
-            print(type_breaks)
+            if not silent:
+                print(type_breaks)
 
             # Go through each individual SSE in the GAIN SSE dictionary
             for idx, sse in enumerate(typus):
                 # Get first and last residue of this SSE
-                first_col = self.alignment_indices[sse[0]]
-                last_col = self.alignment_indices[sse[1]]
+                try:first_col = self.alignment_indices[sse[0]]
+                except: continue
+                # Error correction. Sometimes the detected last Strand exceeds the GAIN boundary.
+                if debug: print(f"DEBUG {sse[1] = }; {self.end-self.start = }, {len(self.alignment_indices) = }")
+                if sse[1] > self.end-self.start-1:
+                    last_col = self.alignment_indices[-1]
+                    sse_end = sse[1]-1
+                else:
+                    last_col = self.alignment_indices[sse[1]]
+                    sse_end = sse[1]
                 exact_match = False                             # This is set to True, otherwise continue to Interval search
                 fuzzy_match = False                             # Flag for successful Interval search detection
                 ambiguous = False                               # Flag for ambiguity
-                #print(f"[DEBUG] GainDomain.create_indexing :  {typus} No. {idx+1}: {sse}")
-                #print(f"[DEBUG] GainDomain.create_indexing : {first_col = }, {last_col = }")
+                if debug:print(f"[DEBUG] GainDomain.create_indexing : \n{typus} No. {idx+1}: {sse}")
+                if debug:print(f"[DEBUG] GainDomain.create_indexing : \n{first_col = }, {last_col = }")
                 
-                for sse_number, sse_res in enumerate(range(sse[0],sse[1]+1)):
+                for sse_res in range(sse[0],sse_end+1):
                     # Find the corresponding alignment index for that residue:
-                    sse_idx = self.alignment_indices[sse_res] 
+                    if sse_res < len(self.alignment_indices):
+                        sse_idx = self.alignment_indices[sse_res]
+                    else:
+                        continue
                     
                     if sse_idx in anchors:
 
                         if exact_match == False:  
-                            #print(f"PEAK FOUND: @ {sse_res = }, {sse_idx = }, {anchor_dict[sse_idx]}")
+                            if debug: print(f"PEAK FOUND: @ {sse_res = }, {sse_idx = }, {anchor_dict[sse_idx]}")
                             sse_name = anchor_dict[sse_idx]
                             anchor_idx = np.where(anchors == sse_idx)[0][0]
-                            #print(f"{np.where(anchors == sse_idx)[0] = }, {sse_idx = }, {anchor_idx = }")
+                            if debug: print(f"{np.where(anchors == sse_idx)[0] = }, {sse_idx = }, {anchor_idx = }")
                             stored_anchor_weight = anchor_occupation[anchor_idx]
                             stored_anchor = anchors[anchor_idx]
                             stored_res = sse_res
@@ -1047,11 +1075,11 @@ class GainDomain:
                                                                             sse=sse,
                                                                             break_residues=type_breaks[idx],
                                                                             mode=split_mode)
-                        print(disambiguated_lists)
+                        if not silent: print(disambiguated_lists)
                         sse_adj, name_list, cast_values = disambiguated_lists[0]
                         if isSplit:
                             sse_adj_2, name_2, cast_2 = disambiguated_lists[1]
-                            print(f"[DEBUG] GainDomain.create_indexing : Found a split list:\n"
+                            if not silent: print(f"[DEBUG] GainDomain.create_indexing : Found a split list:\n"
                                 f"{sse_adj_2  = },\t{name_2 = },\t{cast_2 =  }")
                             nom_list, indexing_dir, indexing_centers = cast(nom_list, indexing_dir, indexing_centers, sse_adj_2, name_2, cast_2)
                             # Also write split stuff to the new dictionary
@@ -1061,22 +1089,29 @@ class GainDomain:
                         #    name_list, cast_values = create_name_list(sse, sse_res, anchor_dict[sse_idx])
                 # if no exact match is found, continue to Interval search and assignment.
                 if exact_match == False:
+                    # expand anchor detection to +1 and -1 of SSE interval
+                    ex_first_col = self.alignment_indices[sse[0]-1]
+                    try:
+                        ex_last_col = self.alignment_indices[sse[1]+1]
+                    except:
+                        ex_last_col = last_col
                     # Construct an Interval of alignment columns corresp. to the SSE residues
+                    if debug:print(f"[DEBUG] GainDomain.create_indexing : \nNo exact match found: extindeing search.\n{typus} No. {idx+1}: {sse}")
                     for peak in anchors: # Look if any peak is contained here
                         
-                        if first_col <= peak and last_col >= peak:
+                        if ex_first_col <= peak and ex_last_col >= peak:
                             fuzzy_match = True
                             if not silent: print(f"[DEBUG] GainDomain.create_indexing : Interval search found anchor @ Column {peak}")
                             # Find the closest residue to the anchor column index. N-terminal wins if two residues tie.
                             peak_dists = [abs(self.alignment_indices[res]-peak) \
-                                                   for res in range(sse[0], sse[1]+1)]
+                                                   for res in range(sse[0], sse_end+1)]
 
                             ref_idx = peak_dists.index(min(peak_dists))
-                            ref_res = range(sse[0], sse[1]+1)[ref_idx]
+                            ref_res = range(sse[0], sse_end+1)[ref_idx]
 
                             if not silent: print(f"NOTE: GainDomain.create_indexing : Interval search found SSE:"
                                                     f"{peak = }, {peak_dists = }, {ref_res = }. \n"
-                                                    "NOTE: GainDomain.create_indexing : This will be named {anchor_dict[peak]}")
+                                                    f"NOTE: GainDomain.create_indexing : This will be named {anchor_dict[peak]}")
 
                             name_list, cast_values = create_name_list(sse, ref_res, anchor_dict[peak])
 
@@ -1087,12 +1122,15 @@ class GainDomain:
                     # Also cast to general indexing dictionary
                     for namidx, entry in enumerate(name_list):
                         named_residue_dir[entry] = namidx+sse[0]+self.start
-                if ambiguous == True:
+                elif ambiguous == True:
                     nom_list, indexing_dir, indexing_centers = cast(nom_list, indexing_dir, indexing_centers, sse_adj, name_list, cast_values)
                     # Also cast to general indexing dictionary
                     for namidx, entry in enumerate(name_list): 
                         named_residue_dir[entry] = namidx+sse_adj[0]+self.start
-
+                else: # If there is an unadressed SSE with length 3 or more, then add this to unindexed.
+                    if sse[1]-sse[0] > 3:
+                        if debug: print(f"[DEBUG] GainDomain.create_indexing : No anchor found! \n {self.alignment_indices[sse[0]] = } \ns{self.alignment_indices[sse_end] = }")
+                        unindexed.append(self.alignment_indices[sse[0]])
         # Patch the GPS into the nom_list
         labels = ["GPS-2","GPS-1","GPS+1"]
         for i, residue in enumerate(self.GPS.residue_numbers[:3]):
@@ -1109,7 +1147,7 @@ class GainDomain:
         if outdir is not None:
             indexing2longfile(self, nom_list, f"{outdir}/{self.name}.txt", offset=offset)
 
-        return indexing_dir, indexing_centers, named_residue_dir
+        return indexing_dir, indexing_centers, named_residue_dir, unindexed
 
 
     def write_gain_pdb(self, pdb_file, outfile=None):
@@ -1188,9 +1226,11 @@ class Anchors:
 
         # Get the residue within each SSE of the highest value of the quality metric
         for i in range(all_sse.shape[0]):
-            #print(f"[DEBUG] gain_classes.Anchors : {i = } , {all_sse[i,:] = }")
-            best_index = all_sse[i,0] + \
+            try:
+                best_index = all_sse[i,0] + \
                          np.argmax(a_gain_domain.residue_quality[all_sse[i,0]:all_sse[i,1]])
+            except:
+                continue
 
             # For which (self-consistently enumerated) SSE is this
             #sse_names.append(a_gain_domain.sse_name_map[best_index])
