@@ -231,23 +231,46 @@ def save2json(distances, names, savename):
     with open(f"../{savename}.json",'w') as c:
         c.write(json.dumps(df))
 
-def gain_set_to_template(list_of_gains, index_list, template_anchors, gesamt_folder, penalty=None, debug=False):
+def gain_set_to_template(list_of_gains, index_list, template_anchors, gesamt_folder, penalty=None, subdomain='sda', debug=False):
     # This is changed to only align a single subdomain, since we do this for a single-subdomain template only now.
     n_anch = len(template_anchors.keys())
     distances = np.full(shape=(len(list_of_gains), n_anch), fill_value=penalty)
     all_matched_anchors = []
-
-    for gain_idx in range(len(list_of_gains)):
-    #for gain_idx, gain in enumerate(list_of_gains):
+    unindexed_elements = {}
+    unindexed_counter = 0
+    #for gain_idx in range(len(list_of_gains)):
+    for gain_idx, gain in enumerate(list_of_gains):
         gain_distances, matched_anchors = match_gain2subdomain_template(index_list[gain_idx], 
                                                                             template_anchors=template_anchors,
                                                                             gesamt_folder=gesamt_folder,
                                                                             penalty=penalty,
                                                                             debug=debug)
+        # check if there are unindexed elements in the GAIN larger than 3 residues
+        anchor_residues = [v[0] for v in matched_anchors.values()]
+        if debug: print(f"[DEBUG]: gain_set_to_template {anchor_residues = }")
+        if subdomain == 'sda':
+            sse = [element for element in gain.sda_helices if element[0] < gain.subdomain_boundary]
+        elif subdomain == 'sdb': 
+            sse = gain.sdb_sheets
+        else: raise ValueError("NO SUBDOMAIN DETECTED")
+        if debug: print(f"[DEBUG]: gain_set_to_template {sse = }")
+        for element in sse:
+            if element[1]-element[0] < 3: 
+                continue
+            if debug: print(f"[DEBUG]: gain_set_to_template {element = } {gain.start = }")
+            isMatch = [a in range(element[0]+gain.start, element[1]+gain.start+1) for a in anchor_residues]
+            if not np.any(isMatch):
+                unindexed_counter += 1
+                if gain.name not in unindexed_elements:
+                    unindexed_elements[gain.name]=[element]
+                else:
+                    unindexed_elements[gain.name].append(element)
+        
+
         if debug: print(f"[DEBUG]: gain_set_to_template : {gain_distances = }")
         distances[gain_idx,:] = gain_distances
         all_matched_anchors.append(matched_anchors)
-    return distances, all_matched_anchors
+    return distances, all_matched_anchors, unindexed_elements, unindexed_counter
 
 def match_gain2subdomain_template(gain_idx, template_anchors, gesamt_folder, penalty=None, debug=False):
     '''
