@@ -231,8 +231,48 @@ def save2json(distances, names, savename):
     with open(f"../{savename}.json",'w') as c:
         c.write(json.dumps(df))
 
-def gain_set_to_template(list_of_gains, index_list, template_anchors, gesamt_folder, penalty=None, subdomain='sda', debug=False):
-    # This is changed to only align a single subdomain, since we do this for a single-subdomain template only now.
+def gain_set_to_template(list_of_gains, index_list, template_anchors, gesamt_folder, penalty=None, subdomain='sda', return_unmatched_mode='quality', threshold=3, debug=False):
+    '''This matches a subselection of GAIN domains (i.e. all ADGRB1 proteins) against a given template with which GESAMT calculation have already been run.
+    list_of_gains :         list of GainDomain objects
+    index_list :            list of indiced for each GainDomain object according to its index in original collection
+    template_anchors :      dict of template anchor residues (with actual PDB-matching residue number, since this is was GESAMT will be taking)
+    gesamt_folder :         string of the dictionary where the calculation files of GESAMT will be found. They should have indices ("123.out") according to "index_list"
+    penalty:                int, For qunatitative plotting, use the penalty value for unmatched elements.
+    subdomain :             string, ["sda","sdb"] to retrieve the corresponding set of elements.
+    return_unmatched_mode:  str, ['index', 'aln', 'quality'], specifies the residues returned:
+                                    'index'     just sequence index of first and last element residue
+                                    'aln'       alignment column of the first and last element residue
+                                    'quality'   aln_column and quality of best quality element residue
+                                    'full'      return all of the above
+    threshold:              int, specifies the lower boundary where an element is considered. default=3
+    debug:                  bool, specifies if DEBUG messages will be printed. Take care, this can easily be >100k lines.
+
+    RETURNS
+    distances:              np.array of shape (len(list_of_gains), #template_anchors) filled with distances in A for each anchor, penalty if unmatched.
+    all_matched_anchors:    list,  with dict as entries, corresponding to every GainDomain with Anchor label, the residue and the distance : {'H1': (653, 1.04) , ...}
+    unindexed_elements:     dict,  gain.name:[[elementstart/start_alignment_column, elementend/end_alignment_column, elementlength], [e2], ...] for the unmatched elements
+    unindexed_counter:      int, a total counter of unindexed elements. This can also include non-conserved initital SSE that have no anchor.
+    '''
+    def compose_element(element, gain, mode=return_unmatched_mode):
+        # no match case since python < 3.10
+        element_length = element[1] - element[0] +1 
+        if mode == 'index':
+            return [element[0], element[1], element_length]
+        elif mode == 'aln':
+            return gain.alignment_indices[element[0]], gain.alignment_indices[element[1], element_length]
+        elif mode == 'quality':
+            qual = [gain.residue_quality[i] for i in range(element[0], element[1]+1)]
+            return [gain.alignment_indices[element[0]+np.argmax(qual)], np.max(qual), element_length]
+        elif mode == 'all':
+            qual = [gain.residue_quality[i] for i in range(element[0], element[1]+1)]
+            return [
+                    gain.alignment_indices[element[0]+np.argmax(qual)], np.max(qual), element_length, 
+                    element[0], element[1], gain.alignment_indices[element[0]], gain.alignment_indices[element[1]] 
+                    ]
+        else: 
+            return [element[0], element[1], element_length]
+
+
     n_anch = len(template_anchors.keys())
     distances = np.full(shape=(len(list_of_gains), n_anch), fill_value=penalty)
     all_matched_anchors = []
@@ -248,25 +288,27 @@ def gain_set_to_template(list_of_gains, index_list, template_anchors, gesamt_fol
         # check if there are unindexed elements in the GAIN larger than 3 residues
         anchor_residues = [v[0] for v in matched_anchors.values()]
         if debug: print(f"[DEBUG]: gain_set_to_template {anchor_residues = }")
+
         if subdomain == 'sda':
-            sse = [element for element in gain.sda_helices if element[0] < gain.subdomain_boundary]
+            sse = [element for element in gain.sda_helices if element[0] < gain.subdomain_boundary-gain.start]
         elif subdomain == 'sdb': 
             sse = gain.sdb_sheets
         else: raise ValueError("NO SUBDOMAIN DETECTED")
+
         if debug: print(f"[DEBUG]: gain_set_to_template {sse = }")
+
         for element in sse:
-            if element[1]-element[0] < 3: 
+            if element[1]-element[0] < threshold: 
                 continue
             if debug: print(f"[DEBUG]: gain_set_to_template {element = } {gain.start = }")
             isMatch = [a in range(element[0]+gain.start, element[1]+gain.start+1) for a in anchor_residues]
             if not np.any(isMatch):
-                unindexed_counter += 1
+                composed_element = compose_element(element=element, gain=gain, mode=return_unmatched_mode)
                 if gain.name not in unindexed_elements:
-                    unindexed_elements[gain.name]=[element]
+                    unindexed_elements[gain.name]=[composed_element]
                 else:
-                    unindexed_elements[gain.name].append(element)
+                    unindexed_elements[gain.name].append(composed_element)
         
-
         if debug: print(f"[DEBUG]: gain_set_to_template : {gain_distances = }")
         distances[gain_idx,:] = gain_distances
         all_matched_anchors.append(matched_anchors)
