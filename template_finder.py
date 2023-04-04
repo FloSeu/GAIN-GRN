@@ -272,7 +272,6 @@ def gain_set_to_template(list_of_gains, index_list, template_anchors, gesamt_fol
         else: 
             return [element[0], element[1], element_length]
 
-
     n_anch = len(template_anchors.keys())
     distances = np.full(shape=(len(list_of_gains), n_anch), fill_value=penalty)
     all_matched_anchors = []
@@ -300,8 +299,12 @@ def gain_set_to_template(list_of_gains, index_list, template_anchors, gesamt_fol
         for element in sse:
             if element[1]-element[0] < threshold: 
                 continue
-            if debug: print(f"[DEBUG]: gain_set_to_template {element = } {gain.start = }")
-            isMatch = [a in range(element[0]+gain.start, element[1]+gain.start+1) for a in anchor_residues]
+            if debug: 
+                print(f"[DEBUG]: gain_set_to_template {element = } {gain.start = } with range\n\t{range(element[0]+gain.start-1, element[1]+gain.start+2) = }",
+                      f'and {anchor_residues = }')
+        # Introduce a wider detection range for the helical match by widening the SSE interval edge by 1. 
+        # This has no relevance to the actual indexing and it just for Detection purposes.
+            isMatch = [a in range(element[0]+gain.start-1, element[1]+gain.start+2) for a in anchor_residues] # <- -1 and +2 for widened edge
             if not np.any(isMatch):
                 composed_element = compose_element(element=element, gain=gain, mode=return_unmatched_mode)
                 if gain.name not in unindexed_elements:
@@ -694,6 +697,36 @@ def create_subdomain_indexing(self, subdomain, actual_anchors, anchor_occupation
             
         return indexing_dir, indexing_centers, named_residue_dir, unindexed
 
+def construct_structural_alignment(template_gain_domain, list_of_gain_obj, gain_indices, gesamt_folder=str, outfile=None):
+    # This will construct an UNGAPPED MSA based on the pairwise match to the template residues.
+    msa_array = np.full(shape=(len(list_of_gain_obj)+1, len(template_gain_domain.sequence)), fill_value='-', dtype = '<U2')
+    msa_array[0,:] = template_gain_domain.sequence
+    all_names = [template_gain_domain.name]
+    #for gesamtfile in glob.glob(f"{gesamt_folder}/*.out"):
+    for gain_idx, gain in enumerate(list_of_gain_obj):
+        if gain.name == template_gain_domain.name: # QC: ensure the template is not aligned to itself.
+            continue
+        all_names.append(gain.name)
+        template_pairs, _ = read_gesamt_pairs(f'{gesamt_folder}/{gain_indices[gain_idx]}.out')
+        # This is a dict: { 516: (837, 1.08),... }
+        res_matches = {k-template_gain_domain.start : gain.sequence[v[0]-gain.start] for k,v in template_pairs.items() if v[0] is not None}
+        # This is a dict matching the aln columns : {0: "V", 1, "A", 4:"C"}, non-matched residues are not present (None value)
+        # map to alignment array
+        for resid, res in res_matches.items():
+            msa_array[gain_idx+1,resid] = res
+
+    # If outfile is specified, write as FASTA formatted MSA.
+    if outfile is not None:
+        if os.path.isfile(outfile):
+            print(f"[NOTE]: {outfile} overwritten.")
+        with open(outfile, 'w') as alnfile:
+            for i, name in enumerate(all_names):
+                seq = msa_array[i,:]#[x.decode('ascii') for x in msa_array[i,:]]
+                alnfile.write(f'>{name}\n{"".join(seq)}\n')
+
+    # Make a dictionary corresponding to already implemented alignment format as dictionary.
+    msa_dict = {name:msa_array[i,:] for i, name in enumerate(all_names)}
+    return msa_dict
 
 def plot_pca(distance_matrix, cluster_intervals, n_components, name, plot3D=False, save=True):
     colorlist = ['blue','red','green','yellow','orange','purple','forestgreen','limegreen','firebrick']

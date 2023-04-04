@@ -606,11 +606,12 @@ class GainDomain:
         if self.hasSubdomain == True:
             # enumeration + evaluation of subdomain SSE composition
             alpha, beta, a_breaks, b_breaks = sse_func.get_subdomain_sse(self.sse_dict, 
-                                                                         self.subdomain_boundary, 
+                                                                         self.subdomain_boundary,
                                                                          self.start, 
                                                                          self.end,
                                                                          self.sse_sequence,
                                                                          stride_outlier_mode=stride_outlier_mode)
+            # offset correction. Since the PDB residues are one-indexed, we convert them to python zero-indexed. This is obsolete when the start is already at 0.
             diff = self.start-1
             if diff < 0: diff = 0
             self.sda_helices = np.subtract(alpha, diff)
@@ -621,24 +622,6 @@ class GainDomain:
             #print(f"{a_breaks = }, \n {self.a_breaks = }")
         
         if not without_anchors:
-        # This is an old naming scheme used for enumerating the SSE in an individual fashion for evaluation
-            """Initialize Dictionaries for detecting consensus SSE in >GainCollection< and calculate self.Anchors
-            sse_qual_dict = {}
-            max_qual_dict = {}
-            print(f"[DEBUG] gain_classes.GainDomain : for Anchors : {self.sse_dict}")
-            for ki in self.sse_dict.keys():
-                sse_qual_dict[ki] = []
-                max_qual_dict[ki] = []
-                for sse_tuple in self.sse_dict[ki]:
-                    print(f"[DEBUG] gain_classes.GainDomain : for Anchors - quality : \n\t {sse_tuple = }")
-                    sse_quality = self.residue_quality[sse_tuple[0]-self.start:sse_tuple[1]-self.start]
-                    sse_qual_dict[ki].append(sse_quality)     
-                    try: 
-                        max_qual_dict[ki].append(np.max(sse_quality))
-                    except ValueError:
-                        print(f"No max value detected in SSE Quality: {sse_quality = }")
-            self.sse_qual_dict = sse_qual_dict
-            self.sse_max_qual_dict = max_qual_dict"""
             # Gather the respective anchors for this GainDomain
             if not hasattr(self, 'sda_helices'):
                 if self.subdomain_boundary is None :
