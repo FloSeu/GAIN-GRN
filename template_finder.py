@@ -10,19 +10,8 @@ import pandas as pd
 from sklearn.cluster import MiniBatchKMeans
 from sklearn.decomposition import PCA
 
-"""class Template:
-    def __init__(self, subdomain, name, pdb_file, anchor_dict):
-        self.subdomain = subdomain
-        self.anchor_dict = anchor_dict
-        self.pdb_file = pdb_file
-        self.identifier = name.split("-")[0]"""
-
-def run_command(cmd, logfile, outfile):
+def run_command(cmd, logfile=None, outfile=None):
     # The command would be the whole command line, in this case the gesamt command.
-    with open(logfile,"a") as l: 
-        l.write(f"\nCalled Function run_command with: {cmd}\nOutput to: {logfile}")
-    f_out = open(outfile, "w")
-    f_err = open(logfile, "w")
     # also : shlex.split("cmd")
     p = subprocess.Popen(cmd, shell=True, 
             stdout=subprocess.PIPE, 
@@ -31,11 +20,18 @@ def run_command(cmd, logfile, outfile):
             universal_newlines=True)
     #exit_code = p.poll()
     outs, errs = p.communicate()
-    f_out.write(outs)
-    f_err.write(errs)
-    f_out.close()
-    f_err.close()
-    return 
+    if outfile is not None:
+        f_out = open(outfile, "w")
+        f_out.write(outs)
+        f_out.close()
+    if logfile is not None:
+        f_err = open(logfile, "a")
+        f_err.write(f"\nCalled Function run_command with: {cmd}\nOutput to: {logfile}")
+        f_err.write(errs)
+        f_err.close()
+    if outfile is None:
+        return outs
+    return
 
 def get_pdb_extents(pdb, subdomain_boundary = None):
     with open(pdb) as p:
@@ -404,7 +400,7 @@ def read_gesamt_pairs(gesamtfile):
     
     return template_pairs, mobile_pairs
 
-def create_subdomain_indexing(self, subdomain, actual_anchors, anchor_occupation, silent=False, split_mode='single',debug=False):
+def create_subdomain_indexing(gain_obj, subdomain, actual_anchors, threshold=3, padding=1, silent=False,  debug=False):
         ''' 
         Makes the indexing list, this is NOT automatically generated, since we do not need this for the base dataset
         Prints out the final list and writes it to file if outdir is specified
@@ -413,8 +409,6 @@ def create_subdomain_indexing(self, subdomain, actual_anchors, anchor_occupation
         ----------
         actual_anchors : dict, required
             Dictionary of anchors with each corresponding to the matched template anchor. This should already be the residue of this GAIN domain
-        anchor_occupation : dict, required
-            Dict of Occupation values corresponding to each of the template anchors (actual_anchors) for resolving ambiguity conflicts
         anchor_dict : dict, required
             Dictionary where each anchor index is assigned a name (H or S followed by a greek letter for enumeration)
         offset : int,  optional (default = 0)
@@ -422,7 +416,7 @@ def create_subdomain_indexing(self, subdomain, actual_anchors, anchor_occupation
         silent : bool, optional (default = False)
             opt in to run wihtout so much info.
         outdir : str, optional
-            Output directory where the output TXT is going to be written as {self.name}.txt
+            Output directory where the output TXT is going to be written as {gain_obj.name}.txt
 
         Returns
         ---------
@@ -436,7 +430,6 @@ def create_subdomain_indexing(self, subdomain, actual_anchors, anchor_occupation
             A list of detected SSE that remain unindexed.
         '''
         # recurring functional blocks used within this function
-
         def create_name_list(sse, ref_res, sse_name):
             ''' Creates a indexing list for an identified SSE with reference index as X.50,
                 Also returns a tuple containing the arguments, enabling dict casting for parsing '''
@@ -445,8 +438,8 @@ def create_subdomain_indexing(self, subdomain, actual_anchors, anchor_occupation
             cast_values = (sse, ref_res, sse_name)
             return name_list, cast_values
 
-        def disambiguate_anchors(self, stored_anchor_weight, stored_res, new_anchor_weight, new_res, sse, break_residues, mode='single'):
-            #print(f"[DEBUG] disambiguate_anchors: {stored_anchor_weight = }, {stored_res = }, {new_anchor_weight = }, {new_res = }, {sse = }")
+        def disambiguate_segments(stored_res, new_res, sse, break_residues):
+           
             def terminate(sse, center_res, adj_break_res):
                 #print(f"DEBUG terminate : {sse = }, {sse[0] = }, {sse[1] = }, {center_res = }, {adj_break_res = }")
                 # neg bound
@@ -471,98 +464,34 @@ def create_subdomain_indexing(self, subdomain, actual_anchors, anchor_occupation
                     offset+=1
 
                 return [N_boundary, C_boundary]
-
-            # this mode indicates if the anchor will just be overwritten instead of split,
-            #   this will be set to OFF if there are breaks between both anchors
-            priority_mode = True
-
-            # First case, there are no break residues
+           
+            if not silent: print(f"[DEBUG] disambiguate_anchors: {stored_res = }, {new_res = }, {sse = }")
+            # First case, there are no break residues. Raise exception, we do not want this, there should always be a break here.
             if break_residues == []:
-                if new_anchor_weight > stored_anchor_weight:
-                    name_list, cast_values = create_name_list(sse, new_res, res2anchor[new_res])
-                else: 
-                    name_list, cast_values = create_name_list(sse, stored_res, res2anchor[stored_res])
-                
-                return [(sse, name_list, cast_values)], False
-
-            adjusted_break_residues = [res+sse[0] for res in break_residues]
+                raise IndexError("No break residues detected here!")
 
             # Check if there is a break residue in between the two conflicting anchors
-            for break_res in adjusted_break_residues:
-                if stored_res < break_res and break_res < new_res:
-                    priority_mode = False 
-                if new_res < break_res and break_res < stored_res:
-                    priority_mode = False
+            adjusted_break_residues = [res+sse[0] for res in break_residues]
 
-            if priority_mode == True:
-                if not silent: 
-                    print(f"DEBUG gain_classes.disambiguate_anchors : no break found between anchors, will just overwrite.")
-                if new_anchor_weight > stored_anchor_weight:
-                    name_list, cast_values = create_name_list(sse, new_res, res2anchor[new_res])
-                else: 
-                    name_list, cast_values = create_name_list(sse, stored_res, res2anchor[stored_res])
-                
-                return [(sse, name_list, cast_values)], False
-
-            # Find the closest break_residue to the lower weight anchor
-            if mode == 'single':
-                if stored_anchor_weight > new_anchor_weight:
-                    lower_res = new_res
-                else:
-                    lower_res = stored_res
-
-                print(f"{adjusted_break_residues = }, {lower_res = }")
-                # Go in left and right direction, check where there is the first break
-                breaker = None
-                offset = 1
-                while offset < 20:
-                    if lower_res + offset in adjusted_break_residues:
-                        offset_idx = adjusted_break_residues.index(lower_res + offset)
-                        breaker = lower_res + offset
-                        break
-                    if lower_res - offset in adjusted_break_residues:
-                        offset_idx = adjusted_break_residues.index(lower_res - offset)
-                        breaker = lower_res - offset
-                        break
-
-                    offset += 1 
-
-                if breaker is None: 
-                    print("[ERROR] BREAKER residue not found.") 
-                    return None, None
-
-                # Divide SSE via BREAKER into two segments, create two separate name_list instances for them
-                seg_N = [sse[0],adjusted_break_residues[offset_idx]-1]
-                seg_C = [adjusted_break_residues[offset_idx]+1, sse[1]]
-
-                if stored_res < breaker:
-                    seg_stored = seg_N
-                    seg_new = seg_C
-                else:
-                    seg_stored = seg_C
-                    seg_new = seg_N
-
-            if mode == 'double':
-                seg_stored = terminate(sse, stored_res, adjusted_break_residues)
-                seg_new = terminate(sse, new_res, adjusted_break_residues)
+            seg_stored = terminate(sse, stored_res, adjusted_break_residues)
+            seg_new = terminate(sse, new_res, adjusted_break_residues)
 
             if not silent: print(f"[NOTE] disambiguate_anchors: Split the segment into: {seg_stored = }, {seg_new = }")
+
             stored_name_list, stored_cast_values = create_name_list(seg_stored, stored_res, res2anchor[stored_res])
             new_name_list, new_cast_values = create_name_list(seg_new, new_res, res2anchor[new_res])
 
-            #print(f"[NOTE] disambiguate_anchors: Successful SSE split via BREAKER residue @ {breaker}")
-
-            return [(seg_stored, stored_name_list, stored_cast_values),(seg_new, new_name_list, new_cast_values)], True # True indicates if lists were split or not!
+            if not silent: print(f"[NOTE] disambiguate_anchors: Successful SSE split via BREAKER residues {adjusted_break_residues}")
+            return [(seg_stored, stored_name_list, stored_cast_values),(seg_new, new_name_list, new_cast_values)] # True indicates if lists were split or not!
 
         def cast(nom_list, indexing_dir, indexing_centers, sse_x, name_list, cast_values):
-            #print(f"DEBUG CAST",sse_x, name_list, cast_values)
-            nom_list[sse_x[0]+self.start : sse_x[1]+1+self.start] = name_list
+            if not silent: print(f"DEBUG CAST",sse_x, name_list, cast_values)
+            nom_list[sse_x[0]+gain_obj.start : sse_x[1]+1+gain_obj.start] = name_list
             indexing_dir[cast_values[2]] = cast_values[0] # all to sse 
             indexing_centers[cast_values[2]+".50"] = cast_values[1] # sse_res where the anchor is located
             return nom_list, indexing_dir, indexing_centers
 
     ### END OF FUNCTION BLOCK
-
         # Initialize Dictionaries
         indexing_dir = {}
         indexing_centers = {}
@@ -570,16 +499,16 @@ def create_subdomain_indexing(self, subdomain, actual_anchors, anchor_occupation
         unindexed = []
 
         # Invert the actual anchors dict to match the GAIN residue to the named anchor
-        res2anchor = {v:k for k,v in actual_anchors.items()}
+        res2anchor = {v[0]:k for k,v in actual_anchors.items()} # v is a tuple  (residue, distance_to_template_center_residue)
         # One-indexed Indexing list for each residue, mapping for the actual residue index
-        nom_list = np.full([self.end+1], fill_value='      ', dtype='<U7')
-        breaks = [self.a_breaks, self.b_breaks]
+        nom_list = np.full([gain_obj.end+1], fill_value='      ', dtype='<U7')
+        breaks = [gain_obj.a_breaks, gain_obj.b_breaks]
         if not silent: print(f"{breaks = }")
         if subdomain.lower() == 'a':
-            sses = self.sda_helices
+            sses = gain_obj.sda_helices
             type_breaks = breaks[0]
         elif subdomain.lower() == 'b':
-            sses = self.sdb_sheets
+            sses = gain_obj.sdb_sheets
             type_breaks = breaks[1]
 
         if not silent:
@@ -588,27 +517,27 @@ def create_subdomain_indexing(self, subdomain, actual_anchors, anchor_occupation
         # Go through each individual SSE in the GAIN SSE dictionary
         for idx, sse in enumerate(sses):
             # Get first and last residue of this SSE
-            try:first_col = self.alignment_indices[sse[0]]
+            try:first_col = gain_obj.alignment_indices[sse[0]]
             except: continue
             # Error correction. Sometimes the detected last Strand exceeds the GAIN boundary.
-            if debug: print(f"DEBUG {sse[1] = }; {self.end-self.start = }, {len(self.alignment_indices) = }")
-            if sse[1] > self.end-self.start-1:
-                last_col = self.alignment_indices[-1]
+            if debug: print(f"DEBUG {sse[1] = }; {gain_obj.end-gain_obj.start = }, {len(gain_obj.alignment_indices) = }")
+            if sse[1] > gain_obj.end-gain_obj.start-1:
+                last_col = gain_obj.alignment_indices[-1]
                 sse_end = sse[1]-1
             else:
-                last_col = self.alignment_indices[sse[1]]
+                last_col = gain_obj.alignment_indices[sse[1]]
                 sse_end = sse[1]
 
             exact_match = False                             # This is set to True, otherwise continue to Interval search
             fuzzy_match = False                             # Flag for successful Interval search detection
             ambiguous = False                               # Flag for ambiguity
 
-            if debug:print(f"[DEBUG] GainDomain.create_indexing : \nNo. {idx+1}: {sse}\n{first_col = }, {last_col = }")
+            if debug:print(f"[DEBUG] create_subdomain_indexing : \nNo. {idx+1}: {sse}\n{first_col = }, {last_col = }")
                 
             for sse_res in range(sse[0],sse_end+1):
                 # Find the anchor within, since the anchors here are already aligned!
-                if sse_res < len(self.alignment_indices):
-                    sse_idx = self.alignment_indices[sse_res]
+                if sse_res < len(gain_obj.alignment_indices):
+                    sse_idx = gain_obj.alignment_indices[sse_res]
                 else:
                     continue
                     
@@ -617,7 +546,6 @@ def create_subdomain_indexing(self, subdomain, actual_anchors, anchor_occupation
                     if exact_match == False:  
                             if debug: print(f"ANCHOR FOUND: @ {sse_res = }, {res2anchor[sse_res]}")
                             sse_name = res2anchor[sse_res]
-                            stored_anchor_weight = anchor_occupation[sse_name]
                             #stored_anchor = sse_name
                             stored_res = sse_res
                             name_list, cast_values = create_name_list(sse, sse_res, sse_name)
@@ -638,63 +566,58 @@ def create_subdomain_indexing(self, subdomain, actual_anchors, anchor_occupation
                             print(f"{type_breaks = } \t {idx = }")
                             print(f"\n\t {type_breaks[idx] = }")
                         # if the new anchor is scored better than the first, replace!
-                    disambiguated_lists, isSplit = disambiguate_anchors(self,
-                                                                        stored_anchor_weight=stored_anchor_weight,
-                                                                        stored_res=stored_res,
-                                                                        new_anchor_weight=anchor_occupation[res2anchor[sse_res]],
-                                                                        new_res=sse_res,
-                                                                        sse=sse,
-                                                                        break_residues=type_breaks[idx],
-                                                                        mode=split_mode)
+                    
+                    disambiguated_lists = disambiguate_segments(stored_res=stored_res,
+                                                                new_res=sse_res,
+                                                                sse=sse,
+                                                                break_residues=type_breaks)
                     if not silent: print(disambiguated_lists)
                     sse_adj, name_list, cast_values = disambiguated_lists[0]
-                    if isSplit:
-                        sse_adj_2, name_2, cast_2 = disambiguated_lists[1]
-                        if not silent: print(f"[DEBUG] GainDomain.create_indexing : Found a split list:\n"
-                            f"{sse_adj_2  = },\t{name_2 = },\t{cast_2 =  }")
-                        nom_list, indexing_dir, indexing_centers = cast(nom_list, indexing_dir, indexing_centers, sse_adj_2, name_2, cast_2)
-                        # Also write split stuff to the new dictionary
-                        for entryidx, entry in enumerate(name_2): 
-                            named_residue_dir[entry] = entryidx+sse_adj[0]+self.start
+                    
+                    sse_adj_2, name_2, cast_2 = disambiguated_lists[1]
+                    if not silent: print(f"[DEBUG] GainDomain.create_indexing : Found a split list:\n"
+                        f"{sse_adj_2  = },\t{name_2 = },\t{cast_2 =  }")
+                    nom_list, indexing_dir, indexing_centers = cast(nom_list, indexing_dir, indexing_centers, sse_adj_2, name_2, cast_2)
+                    # Also write split stuff to the new dictionary
+                    for entryidx, entry in enumerate(name_2): 
+                        named_residue_dir[entry] = entryidx+sse_adj[0]+gain_obj.start
+
             # if no exact match is found, the anchor does not exist in this domain
             if exact_match == False:
                 if debug: print("Anchors not found in this sse", idx, sse)
                 # expand anchor detection to +1 and -1 of SSE interval
                 for res in res2anchor:
-                    if res == sse[0]-1 or res == sse[1]+1:
+                    if res == sse[0]-padding or res == sse[1]+padding:
                         fuzzy_match = True
                         if not silent: print(f"[DEBUG] GainDomain.create_indexing : Interval search found anchor @ Residue {res}")
                         # Find the closest residue to the anchor column index. N-terminal wins if two residues tie.
                         name_list, cast_values = create_name_list(sse, res, res2anchor[res])
 
-            # Finally, if matched, write the assigned nomeclature segment to the array
+            # Finally, if matched, write the assigned indexed segment to the array
                 
             if ambiguous == False and exact_match == True or fuzzy_match == True:
                     nom_list, indexing_dir, indexing_centers = cast(nom_list, indexing_dir, indexing_centers, sse, name_list, cast_values)
                     # Also cast to general indexing dictionary
                     for namidx, entry in enumerate(name_list):
-                        named_residue_dir[entry] = namidx+sse[0]+self.start
+                        named_residue_dir[entry] = namidx+sse[0]+gain_obj.start
             elif ambiguous == True:
                     nom_list, indexing_dir, indexing_centers = cast(nom_list, indexing_dir, indexing_centers, sse_adj, name_list, cast_values)
                     # Also cast to general indexing dictionary
                     for namidx, entry in enumerate(name_list): 
-                        named_residue_dir[entry] = namidx+sse_adj[0]+self.start
+                        named_residue_dir[entry] = namidx+sse_adj[0]+gain_obj.start
             else: # If there is an unadressed SSE with length 3 or more, then add this to unindexed.
-                    if sse[1]-sse[0] > 3:
-                        if debug: print(f"[DEBUG] GainDomain.create_indexing : No anchor found! \n {self.alignment_indices[sse[0]] = } \ns{self.alignment_indices[sse_end] = }")
-                        unindexed.append(self.alignment_indices[sse[0]])
+                    if sse[1]-sse[0] > threshold:
+                        if debug: print(f"[DEBUG] GainDomain.create_indexing : No anchor found! \n {gain_obj.alignment_indices[sse[0]] = } \ns{gain_obj.alignment_indices[sse_end] = }")
+                        unindexed.append(gain_obj.alignment_indices[sse[0]])
         # Patch the GPS into the nom_list
         """        labels = ["GPS-2","GPS-1","GPS+1"]
-        for i, residue in enumerate(self.GPS.residue_numbers[:3]):
+        for i, residue in enumerate(gain_obj.GPS.residue_numbers[:3]):
             #print(residue)
             nom_list[residue] = labels[i]
-            indexing_dir["GPS"] = self.GPS.residue_numbers
+            indexing_dir["GPS"] = gain_obj.GPS.residue_numbers
             # Also cast this to the general indexing dictionary
-            named_residue_dir[labels[i]] = self.GPS.residue_numbers[i]"""
-        # FUTURE CHANGE : GPS assignment maybe needs to be more fuzzy -> play with the interval of the SSE 
-        #       and not the explicit anchor. When anchor col is missing, the whole SSE wont be adressed
-        # print([DEBUG] : GainDomain.create_indexing : ", nom_list)
-            
+            named_residue_dir[labels[i]] = gain_obj.GPS.residue_numbers[i]"""
+           
         return indexing_dir, indexing_centers, named_residue_dir, unindexed
 
 def construct_structural_alignment(template_gain_domain, list_of_gain_obj, gain_indices, gesamt_folder=str, outfile=None):
@@ -704,7 +627,7 @@ def construct_structural_alignment(template_gain_domain, list_of_gain_obj, gain_
     all_names = [template_gain_domain.name]
     #for gesamtfile in glob.glob(f"{gesamt_folder}/*.out"):
     for gain_idx, gain in enumerate(list_of_gain_obj):
-        if gain.name == template_gain_domain.name: # QC: ensure the template is not aligned to itself.
+        if gain.name == template_gain_domain.name: # QC: ensure the template is not aligned to itgain_obj.
             continue
         all_names.append(gain.name)
         template_pairs, _ = read_gesamt_pairs(f'{gesamt_folder}/{gain_indices[gain_idx]}.out')
@@ -889,3 +812,150 @@ def calculate_anchor_distances(template_anchor_coords, mobile_pdb, mobile_anchor
                 matched_anchors[idx] = ''
 
     return dict(zip(mobile_anchors.keys(), matched_anchors)), dict(zip(mobile_anchors.keys(), min_dists))
+
+def find_best_templates(unknown_gain_obj, unknown_gain_pdb: str, sda_templates: dict, sdb_templates: dict):
+    # Put in an unknown GAIN domain object and its corresponding PDB path to match against the set of templates.
+    # This will then give the best match for subdomain A and subdomain B based on GESAMT pairwise alignment
+    pdb_start, sda_boundary, sdb_boundary, pdb_end = get_pdb_extents(unknown_gain_pdb, unknown_gain_obj.subdomain_boundary)
+    # For each template, run GESAMT with the corresponding subdomain and find lowest RMSD; maybe future: Highest Q-Score
+
+    a_rmsds = []
+    b_rmsds = []
+    a_names = []
+    b_names = []
+
+    for sda_id, sda_pdb in sda_templates.items():
+        cmd_string = f'/home/hildilab/lib/xtal/ccp4-8.0/bin/gesamt {sda_pdb} {unknown_gain_pdb} -s A/{pdb_start}-{sda_boundary}'
+        output = run_command(cmd_string)
+        # Read the RMSD value from the ouptut string returned by the function. No files are created here.
+        match = re.search(r"RMSD\W+\:\W+[0-9]+\.[0-9]+",output)
+        if match is None:
+            print("[WARNING]: NO RMSD FOUND:", cmd_string, output)
+            val = 100.0 # penalty for non-matching template
+        else:
+            val = float(match.group(0)[-5:])
+        a_names.append(sda_id)
+        a_rmsds.append(val)
+
+    best_sda = a_names[a_rmsds.index(min(a_rmsds))]
+
+    for sdb_id, sdb_pdb in sdb_templates.items():
+        cmd_string = f'/home/hildilab/lib/xtal/ccp4-8.0/bin/gesamt {sdb_pdb} {unknown_gain_pdb} -s A/{sdb_boundary}-{pdb_end}'
+        output = run_command(cmd_string)
+        # Read the RMSD value from the ouptut string returned by the function. No files are created here.
+        match = re.search(r"RMSD\W+\:\W+[0-9]+\.[0-9]+",output)
+        if match is None:
+            print("[WARNING]: NO RMSD FOUND:", cmd_string, output)
+            val = 100.0 # penalty for non-matching template
+        else:
+            val = float(match.group(0)[-5:])
+        b_names.append(sdb_id)
+        b_rmsds.append(val)
+        
+    best_sdb = a_names[a_rmsds.index(min(a_rmsds))]
+
+    return best_sda, best_sdb
+
+def get_agpcr_type(name):
+    queries = [('AGR..', name, lambda x: x[-1][-2:]), #
+                ('ADGR..', name, lambda x: x[-1][-2:]), 
+                ('cadher.*receptor.', name.lower(), lambda x: f"C{x[-1][-1]}"),
+                ('cels?r.', name.lower(), lambda x: f"C{x[-1][-1]}"), 
+                ('latrophilin.*protein-?\d', name.lower(), lambda x: f"L{x[-1][-1]}"),
+                ('latrophilin-?\d', name.lower(), lambda x: f"L{x[-1][-1]}"),
+                ('GP?R133', name.upper(),lambda x: 'D1'),
+                ('GP?R126', name.upper(),lambda x: 'G6'),
+                ('GP?R?124', name.upper(),lambda x: 'A2'),
+                ('GP?R?125', name.upper(),lambda x: 'A3'),
+                ('GP?R112', name.upper(),lambda x: 'G4'),
+                ('GP?R116', name.upper(),lambda x: 'F5'),
+                ('GP?R144', name.upper(),lambda x: 'D2'),
+                ('ag-?.*-?coupled-?receptor-?.-?\d', name.lower(),lambda x: x[-1].replace('-','')[-2:].upper()),
+                ('brain-?specific-?angiogenesis-?inhibitor-?\d', name.lower(), lambda x: f"B{x[-1][-1]}"),
+                ('emr\d', name.lower(), lambda x: f"E{x[-1][-1]}"),
+                ]
+    for pattern, searchstring, output in queries:
+        match = re.findall(pattern, searchstring)
+        if match != []:
+            #if output(match) == '': print(name)
+            return output(match)
+    return 'X'
+
+def assign_indexing(gain_obj, file_prefix: str, gain_pdb: str, template_dir: str, outdir=None):
+
+    type_2_sda_template = {
+                    'A1':'A', 'A2':'A', 'A3':'A', 
+                    'B1':'A', 'B2':'A', 'B3':'A',
+                    'C1':'C', 'C2':'C', 'C3':'C',
+                    'D1':'D','D2':'G7',
+                    'E1':'E1', 'E2':'E1', 'E3':'E1', 'E4':'E1', 'E5':'E5', 'E' :'E1',
+                    'F1':'F5','F2':'F4', 'F3':'F5', 'F4':'F4', 'F5':'F5', 'F' :'F5',
+                    'G1':'G7', 'G2':'G7', 'G3':'G7', 'G4':'G7', 'G5':'G7', 'G6':'G7', 'G7':'G7',
+                    'L1':'L', 'L2':'L', 'L3':'L', 'L4':'L4',
+                    'V1':'V'
+                    }
+    type_2_sdb_template = {
+                    'A1':'E5b', 'A2':'E5b', 'A3':'E5b', 
+                    'B1':'E5b', 'B2':'E5b', 'B3':'E5b',
+                    'C1':'E5b', 'C2':'E5b', 'C3':'E5b',
+                    'D1':'E5b','D2':'E5b',
+                    'E1':'E5b', 'E2':'E5b', 'E3':'E5b', 'E4':'E5b', 'E5':'E5b', 'E' :'E5b',
+                    'F1':'E5b','F2':'E5b', 'F3':'E5b', 'F4':'E5b', 'F5':'E5b', 'F' :'E5b',
+                    'G1':'G5b', 'G2':'E5b', 'G3':'G5b', 'G4':'E5b', 'G5':'G5b', 'G6':'E5b', 'E5b':'E5b',
+                    'L1':'E5b', 'L2':'E5b', 'L3':'E5b', 'L4':'E5b',
+                    'V1':'E5b'
+                    }
+
+    sda_centers = {
+                    'A' :{'H1'   :416 , 'H2':439 , 'H3':454 , 'H4':489 , 'H5':496 , 'H6':514 },
+                    'C' :{'H1'   :463 , 'H2':484 , 'H3':498 , 'H4':541 , 'H5':549 , 'H6':567 },
+                    'D' :{'H1.D1':390 , 'H2':420 , 'H3':435 , 'H4':480 , 'H5':488 , 'H6':506 },
+                    'E1':{'H1.E1':142 ,            'H3':159 , 'H4':198 ,            'H6':221 },
+                    'E5':{                         'H3':268 , 'H4':303 ,            'H6':329 },
+                    'F2':{'H1.F2':89  , 'H2':101 , 'H3':114 , 'H4':148 , 'H5':157 , 'H6':174 },
+                    'F4':{'H1.F4':133 , 'H2':145 , 'H3':158 ,            'H5':201 , 'H6':218 },
+                    'G7':{'H1'   :148 , 'H2':164 , 'H3':178 , 'H4':212 , 'H5':219 , 'H6':239 },
+                    'L' :{'H1'   :494 , 'H2':509 , 'H3':521 , 'H4':580 , 'H5':588 , 'H6':608 },
+                    'L4':{'H1'   :197 , 'H2':212 , 'H3':224 , 'H4':266 , 'H5':274 , 'H6':294 },
+                    'V' :{'H1'   :528 , 'H2':546 , 'H3':558 , 'H4':589 ,            'H6':607 }
+                  }
+    sdb_centers = {
+                    'E5b':	{'S1':324, 'S2':333, 'S3':350, 'S4':357, 'S5':375, 'S6':407, 'S7':414, 'S8':431, 'S9':450, 'S10':459, 'S11':464, 'S12':476 ,'S13':487},
+                    'G5b':	{'S1': 65, 'S2':74,  'S3':88 , 'S4':105 ,'S5':124,			 'S7':149 ,'S8':167 ,'S9':183 ,'S10':198 ,'S11':203 ,'S12':215 ,'S13':226}
+                  }
+    # evaluate the tempate dir and find sda and sdb templates:
+    sda_templates = {}
+    sdb_templates = {}
+    pdbs = glob.glob(f"{template_dir}/*pdb")
+    for pdb in pdbs:
+        p_name = pdb.split("/")[-1].split(".")[0]
+        if "b" in p_name:
+            sdb_templates[p_name] = pdb
+        else:
+            sda_templates[p_name] = pdb
+
+    # Get the agpcr-type and the corresponding templates to be matched.
+    agpcr_type = get_agpcr_type(gain_obj.name)
+    # If the type is unknown, get the best matching templates by performing RMSD after alignment via GESAMT
+    if agpcr_type not in type_2_sda_template.keys():
+        if agpcr_type[0] not in type_2_sda_template.keys():
+            best_a, best_b = find_best_templates(gain_obj, gain_pdb, sda_templates, sdb_templates)
+    else:
+        best_a = type_2_sda_template[agpcr_type] # This is the best template ID, i.e. "A"
+        best_b = type_2_sdb_template[agpcr_type] #              -"-                   "E5b"
+    
+    a_centers = sda_centers[best_a]
+    b_centers = sdb_centers[best_b]
+
+    pdb_start, sda_boundary, sdb_boundary, pdb_end = get_pdb_extents(gain_pdb, gain_obj.subdomain_boundary)
+    a_cmd_string = f'/home/hildilab/lib/xtal/ccp4-8.0/bin/gesamt {sda_templates[best_a]} {gain_pdb} -s A/{pdb_start}-{sda_boundary}'
+    b_cmd_string = f'/home/hildilab/lib/xtal/ccp4-8.0/bin/gesamt {sdb_templates[best_b]} {gain_pdb} -s A/{sdb_boundary}-{pdb_end}'
+    # run GESAMT, keep the file to read later and documentation
+    run_command(a_cmd_string, logfile=None, outfile=f'{file_prefix}_sda.out')
+    run_command(b_cmd_string, logfile=None, outfile=f'{file_prefix}_sdb.out')
+
+    target_a_centers = find_anchor_matches(f'{file_prefix}_sda.out', a_centers, isTarget=False, debug=False)
+    target_b_centers = find_anchor_matches(f'{file_prefix}_sdb.out', b_centers, isTarget=False, debug=False)
+
+    indexing_dir, indexing_centers, named_residue_dir, unindexed = create_subdomain_indexing(gain_obj, 'a', target_a_centers, threshold=3, padding=1, silent=False, debug=True)
+    indexing_dir, indexing_centers, named_residue_dir, unindexed = create_subdomain_indexing(gain_obj, 'b', target_b_centers, threshold=1, padding=1, silent=False, debug=True)
