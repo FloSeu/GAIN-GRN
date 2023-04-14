@@ -46,7 +46,9 @@ def get_pdb_extents(pdb, subdomain_boundary = None):
             sdb_boundary = np.min([res for res in all_res if res > subdomain_boundary])
         else:
             sda_boundary, sdb_boundary = subdomain_boundary, subdomain_boundary
-    return int(first), sda_boundary, sdb_boundary, int(last)
+        return int(first), sda_boundary, sdb_boundary, int(last)
+    print("NOTE: Subdomain boundary not specified. Returning [start, None, None, end]")
+    return int(first), None, None, int(last)
 
 def run_gesamt_execution(list_of_gain_obj, outfolder, pdb_folder='../all_pdbs', domain='sda', n_threads=6, max_struc=400, no_run=False, template=None):
     # Will compare all PDBS of a given list of GainDomain objects. It will compare all vs. all PDB files in the selection in the PDB folder
@@ -881,8 +883,8 @@ def get_agpcr_type(name):
             return output(match)
     return 'X'
 
-def assign_indexing(gain_obj, file_prefix: str, gain_pdb: str, template_dir: str, outdir=None):
-
+def assign_indexing(gain_obj, file_prefix: str, gain_pdb: str, template_dir: str):
+    # Arbitrarily defined data for templates. Receptor type -> template ID
     type_2_sda_template = {
                     'A1':'A', 'A2':'A', 'A3':'A', 
                     'B1':'A', 'B2':'A', 'B3':'A',
@@ -905,7 +907,7 @@ def assign_indexing(gain_obj, file_prefix: str, gain_pdb: str, template_dir: str
                     'L1':'E5b', 'L2':'E5b', 'L3':'E5b', 'L4':'E5b',
                     'V1':'E5b'
                     }
-
+    # Predefined x.50 residues for each set template (= center)
     sda_centers = {
                     'A' :{'H1'   :416 , 'H2':439 , 'H3':454 , 'H4':489 , 'H5':496 , 'H6':514 },
                     'C' :{'H1'   :463 , 'H2':484 , 'H3':498 , 'H4':541 , 'H5':549 , 'H6':567 },
@@ -933,6 +935,12 @@ def assign_indexing(gain_obj, file_prefix: str, gain_pdb: str, template_dir: str
             sdb_templates[p_name] = pdb
         else:
             sda_templates[p_name] = pdb
+    # In case the file_prefix specifies a folder, check if the folder exists. If not, create it.
+    if "/" in file_prefix:
+        target_path = "/".join(file_prefix.split("/")[:-1])
+        if not os.path.isdir(target_path):
+            print(f"Created {target_path}")
+            os.mkdir(target_path)
 
     # Get the agpcr-type and the corresponding templates to be matched.
     agpcr_type = get_agpcr_type(gain_obj.name)
@@ -957,5 +965,5 @@ def assign_indexing(gain_obj, file_prefix: str, gain_pdb: str, template_dir: str
     target_a_centers = find_anchor_matches(f'{file_prefix}_sda.out', a_centers, isTarget=False, debug=False)
     target_b_centers = find_anchor_matches(f'{file_prefix}_sdb.out', b_centers, isTarget=False, debug=False)
 
-    indexing_dir, indexing_centers, named_residue_dir, unindexed = create_subdomain_indexing(gain_obj, 'a', target_a_centers, threshold=3, padding=1, silent=False, debug=True)
-    indexing_dir, indexing_centers, named_residue_dir, unindexed = create_subdomain_indexing(gain_obj, 'b', target_b_centers, threshold=1, padding=1, silent=False, debug=True)
+    a_results = list(create_subdomain_indexing(gain_obj, 'a', target_a_centers, threshold=3, padding=1, silent=False, debug=True))
+    b_results = list(create_subdomain_indexing(gain_obj, 'b', target_b_centers, threshold=1, padding=1, silent=False, debug=True))
