@@ -445,7 +445,7 @@ def create_subdomain_indexing(gain_obj, subdomain, actual_anchors, threshold=3, 
     def disambiguate_segments(stored_res, new_res, sse, break_residues):
            
         def terminate(sse, center_res, adj_break_res):
-            #print(f"DEBUG terminate : {sse = }, {sse[0] = }, {sse[1] = }, {center_res = }, {adj_break_res = }")
+            if debug: print(f"DEBUG terminate : {sse[0] = }\n\t{sse[1] = }\n\t{center_res = }\n\t{adj_break_res = }")
             offset = 0
             while center_res-offset >= sse[0]:
                 if center_res-offset == sse[0]: 
@@ -468,7 +468,7 @@ def create_subdomain_indexing(gain_obj, subdomain, actual_anchors, threshold=3, 
 
             return [N_boundary, C_boundary]
            
-        if not silent: print(f"[DEBUG] disambiguate_segments: {stored_res = }, {new_res = }, {sse = }")
+        if not silent: print(f"[DEBUG] disambiguate_segments: {stored_res = }\n\t{new_res = }\n\t{sse = }")
         # First case, there are no break residues. Raise exception, we do not want this, there should always be a break here.
         if break_residues == []:
             raise IndexError("No break residues detected here!")
@@ -875,7 +875,7 @@ def get_agpcr_type(name):
             return output(match)
     return 'X'
 
-def assign_indexing(gain_obj, file_prefix: str, gain_pdb: str, template_dir: str, debug=False):
+def assign_indexing(gain_obj, file_prefix: str, gain_pdb: str, template_dir: str, debug=False, create_pdb=False):
     if debug:
         print(f"[DEBUG] assign_indexing: {gain_obj.start = }\n\t{gain_obj.end = }\n\t{gain_obj.subdomain_boundary = }\n\t{gain_pdb = }")
     # Arbitrarily defined data for templates. Receptor type -> template ID
@@ -924,7 +924,7 @@ def assign_indexing(gain_obj, file_prefix: str, gain_pdb: str, template_dir: str
     sdb_templates = {}
     pdbs = glob.glob(f"{template_dir}/*pdb")
     for pdb in pdbs:
-        p_name = pdb.split("/")[-1].split(".")[0]
+        p_name = pdb.split("/")[-1].split("_")[0]
         if "b" in p_name:
             sdb_templates[p_name] = pdb
         else:
@@ -957,9 +957,27 @@ def assign_indexing(gain_obj, file_prefix: str, gain_pdb: str, template_dir: str
     pdb_start, sda_boundary, sdb_boundary, pdb_end = get_pdb_extents(gain_pdb, gain_obj.subdomain_boundary)
     a_cmd_string = f'/home/hildilab/lib/xtal/ccp4-8.0/bin/gesamt {sda_templates[best_a]} {gain_pdb} -s A/{pdb_start}-{sda_boundary}'
     b_cmd_string = f'/home/hildilab/lib/xtal/ccp4-8.0/bin/gesamt {sdb_templates[best_b]} {gain_pdb} -s A/{sdb_boundary}-{pdb_end}'
+    
+    if create_pdb:
+        a_cmd_string = a_cmd_string + f" -o {file_prefix}_sda.pdb"
+        b_cmd_string = b_cmd_string + f" -o {file_prefix}_sdb.pdb"
     # run GESAMT, keep the file to read later and documentation
     run_command(a_cmd_string, logfile=None, outfile=f'{file_prefix}_sda.out')
     run_command(b_cmd_string, logfile=None, outfile=f'{file_prefix}_sdb.out')
+
+    # Not needed if the template chains in the template PDBs are already !A
+    """    def rewrite_chains(pdb):
+        with open(pdb) as p:
+            data = p.read()
+        dx = data.split("ENDMDL", 1)
+        with open(pdb,'w') as p:
+            p.write(dx[0])
+            p.write("ENDMDL")
+            p.write(dx[1].replace(" A ", " B "))
+
+    if create_pdb:
+        rewrite_chains(f"{file_prefix}_sda.pdb")
+        rewrite_chains(f"{file_prefix}_sdb.pdb")"""
 
     target_a_centers = find_anchor_matches(f'{file_prefix}_sda.out', a_centers, isTarget=False, debug=debug)
     target_b_centers = find_anchor_matches(f'{file_prefix}_sdb.out', b_centers, isTarget=False, debug=debug)
