@@ -381,15 +381,16 @@ def find_boundaries(sse_dict, seq_len, bracket_size=50, domain_threshold=50, coi
     # If you did not find the maxk previously:
     return None, None
 
-def sse_seqence2bools(sse_dict:dict):
+def sse_sequence2bools(sse_dict:dict,):
     '''
     Create a dictionary containing the actually detected alpha helices and beta sheets for all residues in sse_dict, 
     using lower_case mode detection and the spacing variable
     '''
-    signal_len = max(sse_dict.keys()) - min(sse_dict.keys())
-    hel_signal = np.zeros(shape=[signal_len], dtype=int)
-    she_signal = np.zeros(shape=[signal_len], dtype=int)
-
+    #print(f"[DEBUG] sse_func.sse_sequence2bools:\n\t{sse_dict = }")
+    len = max(sse_dict.keys())
+    hel_signal = np.zeros(shape=[len], dtype=int)
+    she_signal = np.zeros(shape=[len], dtype=int)
+    
     for res, assigned_sse in sse_dict.items():
         if assigned_sse == "H" or assigned_sse == "G":
             hel_signal[res] = 1
@@ -398,7 +399,70 @@ def sse_seqence2bools(sse_dict:dict):
 
     return hel_signal, she_signal
 
-def count_domain_sses(domain_start, domain_end, tuple_list=None, spacing=1, minimum_length=3, gain_start=0, sse_bool=None):
+def count_domain_sses(domain_start, domain_end, tuple_list=None, spacing=1, minimum_length=3, sse_bool=None, debug=False):
+    # provide either sse_bool or tuple_list
+    if sse_bool is None:
+        parsed_sses = []
+        if debug: 
+            print(f"[DEBUG] sse_func.count_domain_sses : No sse_bool specified. Constructing from:\n\t{tuple_list = } \n\t{domain_start = } {domain_end = }")
+        # First, check if the SSE limits exceed the provided Domain boundary (sort of a sanity check)
+        for sse in tuple_list:
+            if sse[0] >= domain_start and sse[1] <= domain_end:
+                #print(f"[DEBUG] sse_func.count_domain_sses : {sse = }")
+                parsed_sses.append(sse)
+            
+        sse_bool = np.zeros(shape=[domain_end], dtype=bool)
+        for element_tuple in parsed_sses:
+            sse_bool[element_tuple[0]:element_tuple[1]+1] = 1 # THE LAST NUMBER OF THE TUPLE IN LIST IS INCLUDED!
+                                                              #        0  1  2  3  4  5  6  7  8  9 10 11  ...
+                                                              # (1,9) [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, ...]
+            #print(f"[DEBUG] sse_func.count_domain_sses : {element_tuple = }")
+    
+    #print(f"[DEBUG] sse_func.count_domain_sses : {sse_bool = }")
+    # Otherwise SSE_BOOL has been passed and is used directly
+    # Truncate the SSE BOOL by setting everything outside the boundaries to zero.
+    sse_bool[:domain_start] = 0
+    up_edges = []
+    down_edges = []
+    break_residues = []
+
+    for i in range(len(sse_bool)-1):
+        if sse_bool[i] and not sse_bool[i+1]: # [.. 1 0 ..]
+            down_edges.append(i+1)
+        if not sse_bool[i] and sse_bool[i+1]: # [.. 0 1 ..]
+            up_edges.append(i+1)
+    down_edges.append(len(sse_bool))
+
+    # Remove all segments between down-edge and up-edge where count(0) <= spacing
+    # remove zero-segments whose length is smaller than $spacing
+    i = 1
+    n_elements = len(up_edges)
+    while i < n_elements:
+        unordered_length = up_edges[i+1] - down_edges[i]
+        if unordered_length <= spacing:
+            breaks = list(range(down_edges[i]+1, up_edges[i+1]))
+            break_residues.append(breaks)
+            del up_edges[i+1]
+            del down_edges[i]
+            n_elements -= 1
+            continue
+        # If this is a unique element, append empty breaks.
+        break_residues.append([])
+        i += 1
+    
+    # With the cleaned up lists of up_edges and down_edges, get all elements satisfying minium_length.
+    intervals = []
+    for i in range(n_elements):
+        element_length = down_edges[i] - up_edges[i]
+        if element_length < minimum_length:
+            continue
+        intervals.append([up_edges[i], down_edges[i]-1])
+    if debug:
+        print(f"[DEBUG] sse_func.count_domain_sses : RETURNING \n\t{intervals = }\n\t{break_residues = }")
+
+    return np.asarray(intervals), break_residues
+
+def count_domain_sses_old(domain_start, domain_end, tuple_list=None, spacing=1, minimum_length=3, sse_bool=None):
     ''' 
     Count the total number of SSE in a given interval (domain_start-domain_end) 
     that are disrupted by max. {spacing} residues 
@@ -461,6 +525,7 @@ def count_domain_sses(domain_start, domain_end, tuple_list=None, spacing=1, mini
     found_sses = sse_boundaries.reshape([sse_boundaries.shape[0]//2,2])
     filtered_sses = []
     #print(f"[DEBUG] sse_func.count_domain_sses : After signal detection:\n{found_sses}")
+    
     # re-value SSE boundaries for exact boundaries if spacing != 0
     for i in range(found_sses.shape[0]):
         bool_element = sse_bool[found_sses[i,0]:found_sses[i,1]]
@@ -719,7 +784,7 @@ def cut_sse_dict(start, end, sse_dict):
 
     return new_dict
 
-def get_subdomain_sse(sse_dict:dict, subdomain_boundary:int, start:int, end:int, residue_sse:dict, stride_outlier_mode=False):
+def get_subdomain_sse(sse_dict:dict, subdomain_boundary:int, start:int, end:int, residue_sse:dict, stride_outlier_mode=False, debug=False):
     '''
     Fuzzy detection of Helices in Subdomain A and Sheets in Subdomain B
     Count them and return their number + individual boundaries
@@ -758,13 +823,13 @@ def get_subdomain_sse(sse_dict:dict, subdomain_boundary:int, start:int, end:int,
         sheet_lowerbound = subdomain_boundary
 
     if stride_outlier_mode == False:    
-        alpha, alpha_breaks = count_domain_sses(start,helix_upperbound, helices, spacing=1, minimum_length=3, gain_start=start) # PARSING BY SSE DICTIONARY
-        beta, beta_breaks = count_domain_sses(sheet_lowerbound, end, sheets, spacing=1, minimum_length=2, gain_start=start) # 
+        alpha, alpha_breaks = count_domain_sses(start,helix_upperbound, helices, spacing=1, minimum_length=3, gain_start=start, debug=debug) # PARSING BY SSE DICTIONARY
+        beta, beta_breaks = count_domain_sses(sheet_lowerbound, end, sheets, spacing=1, minimum_length=2, gain_start=start, debug=debug) # 
     
     if stride_outlier_mode == True:
-        hel_bool, she_bool = sse_seqence2bools(residue_sse)
-        alpha, alpha_breaks = count_domain_sses(start,helix_upperbound, helices, spacing=1, minimum_length=3, gain_start=start, sse_bool=hel_bool) # PARSING BY SSE-SEQUENCE
-        beta, beta_breaks = count_domain_sses(sheet_lowerbound, end, sheets, spacing=1, minimum_length=2, gain_start=start, sse_bool=she_bool) # 
+        hel_bool, she_bool = sse_sequence2bools(residue_sse)
+        alpha, alpha_breaks = count_domain_sses(start,helix_upperbound, helices, spacing=1, minimum_length=3, gain_start=start, sse_bool=hel_bool, debug=debug) # PARSING BY SSE-SEQUENCE
+        beta, beta_breaks = count_domain_sses(sheet_lowerbound, end, sheets, spacing=1, minimum_length=2, gain_start=start, sse_bool=she_bool, debug=debug) # 
     #print(f"[DEBUG] sse_func.get_subdomain_sse : \n\t {alpha = } \n\t {beta = }")
     return alpha, beta, alpha_breaks, beta_breaks
 
