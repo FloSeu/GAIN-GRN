@@ -265,8 +265,8 @@ class GainCollection:
         for gain in self.collection:
             sse_alignment_row = np.full([aln_cutoff], fill_value='-', dtype='<U1')
             mapper = sse_func.get_indices(gain.name, gain.sequence, input_alignment, aln_cutoff)
-            for res_id, sse_letter in gain.sse_sequence.items():
-                sse_alignment_row[mapper[res_id]] = sse_letter
+            for seq_idx, sse_letter in enumerate(gain.sse_sequence_list):
+                sse_alignment_row[mapper[seq_idx]] = sse_letter
             out_dict[gain.name[:-3]] = sse_alignment_row
 
         # Write to file
