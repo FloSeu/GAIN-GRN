@@ -41,10 +41,10 @@ def read_sse_asg(file):
     file : str, required
             STRIDE file to be read. 
     Returns 
-        sse_sequence : list
-            LIST containing a sequence of all letters assigned to the residues
+        sse_sequence : dict
+            DICT containing a sequence of all letters assigned to the residues with the key being the present residue
     '''
-    sse_list = []
+    sse_dict = {}
 
     with open(file) as f:
 
@@ -53,10 +53,15 @@ def read_sse_asg(file):
             if l.startswith("ASG"):     # ASG is the per-residue ASSIGNMENT of SSE
                                         # LOC is already grouped from [start - ]
                 items = l.split(None)   # [24] has the SSE one-letter code
-                one_letter_sse = items[5]
-                sse_list.append(one_letter_sse)
+                # Example lines:
+                # items[i]:
+                #  0    1 2    3    4    5             6         7         8         9        10
+                #ASG  THR A  458  453    E        Strand   -123.69    131.11       4.2      ~~~~
+                #ASG  SER A  459  454    E        Strand    -66.77    156.86      10.4      ~~~~
+                # 3 is the PDB index, 4 is the enumerating index, this is crucial for avoiding offsets, always take 3
+                sse_dict[int(items[3])] = items[5]
 
-    return sse_list
+    return sse_dict
 
 def read_seq(file, return_name=False):
     '''
