@@ -812,7 +812,8 @@ def get_subdomain_sse(sse_dict:dict, subdomain_boundary:int, start:int, end:int,
     '''
     helices = get_sse_type(["AlphaHelix", "310Helix"], sse_dict)
     sheets = get_sse_type("Strand", sse_dict)
-    #print(f"[DEBUG] sse_func.get_subdomain_sse : \n\t {helices = } \n\t {sheets = } \n\t {subdomain_boundary = }")
+    if debug:
+        print(f"[DEBUG] sse_func.get_subdomain_sse : \n\t {helices = } \n\t {sheets = } \n\t {subdomain_boundary = }")
 
     # Parse boundaries, relevant for other uses of this function like enumerating other sections
     if subdomain_boundary == None:
@@ -830,12 +831,13 @@ def get_subdomain_sse(sse_dict:dict, subdomain_boundary:int, start:int, end:int,
         hel_bool, she_bool = sse_sequence2bools(residue_sse)
         alpha, alpha_breaks = count_domain_sses(start,helix_upperbound, helices, spacing=1, minimum_length=3, gain_start=start, sse_bool=hel_bool, debug=debug) # PARSING BY SSE-SEQUENCE
         beta, beta_breaks = count_domain_sses(sheet_lowerbound, end, sheets, spacing=1, minimum_length=2, gain_start=start, sse_bool=she_bool, debug=debug) # 
-    #print(f"[DEBUG] sse_func.get_subdomain_sse : \n\t {alpha = } \n\t {beta = }")
+    if debug:
+        print(f"[DEBUG] sse_func.get_subdomain_sse : \n\t {alpha = } \n\t {beta = }")
     return alpha, beta, alpha_breaks, beta_breaks
 
 #### NAMING SCHEME ####
 
-def name_sse(sse_dict, subdomain_boundary, start, end, residue_sse):
+def name_sse(sse_dict, subdomain_boundary, start, end, residue_sse, debug=False):
     '''
     THIS IS A ROUGH NAMING SCHEME AND >NOT THE NOMENCLATURE<, BUT THIS CAN BE PERFORMED WITHOUT THE UNDERLYING DATASET!
     generate a name map from the information about the GAIN domain
@@ -856,7 +858,7 @@ def name_sse(sse_dict, subdomain_boundary, start, end, residue_sse):
         name_arr : list
             A list containing the label of the naming scheme for each residue of the GAIN domain
     '''
-    alpha, beta, _, _ = get_subdomain_sse(sse_dict, subdomain_boundary, start, end, residue_sse)
+    alpha, beta, _, _ = get_subdomain_sse(sse_dict, subdomain_boundary, start, end, residue_sse, debug=debug)
 
     name_arr = np.empty([end-start], dtype='<U16')
     is_helix = np.zeros([end-start], dtype=bool)
