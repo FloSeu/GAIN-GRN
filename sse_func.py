@@ -41,10 +41,10 @@ def read_sse_asg(file):
     file : str, required
             STRIDE file to be read. 
     Returns 
-        sse_sequence : dict
+        residue_sse : dict
             DICT containing a sequence of all letters assigned to the residues with the key being the present residue
     '''
-    sse_dict = {}
+    residue_sse = {}
 
     with open(file) as f:
 
@@ -59,9 +59,9 @@ def read_sse_asg(file):
                 #ASG  THR A  458  453    E        Strand   -123.69    131.11       4.2      ~~~~
                 #ASG  SER A  459  454    E        Strand    -66.77    156.86      10.4      ~~~~
                 # 3 is the PDB index, 4 is the enumerating index, this is crucial for avoiding offsets, always take 3
-                sse_dict[int(items[3])] = items[5]
+                residue_sse[int(items[3])] = items[5]
 
-    return sse_dict
+    return residue_sse
 
 def read_seq(file, return_name=False):
     '''
@@ -381,23 +381,23 @@ def find_boundaries(sse_dict, seq_len, bracket_size=50, domain_threshold=50, coi
     # If you did not find the maxk previously:
     return None, None
 
-def sse_seqence2bools(sse_list):
+def sse_seqence2bools(sse_dict:dict):
     '''
-    Create a dictionary containing the actually detected alpha helices and beta sheets for all residues in sse_list, 
+    Create a dictionary containing the actually detected alpha helices and beta sheets for all residues in sse_dict, 
     using lower_case mode detection and the spacing variable
     '''
     sse_dict = {}
     sse_dict["AlphaHelix"] = []
     sse_dict["Strand"] = []
+    signal_len = max(sse_dict.keys()) - min(sse_dict.keys())
+    hel_signal = np.zeros(shape=[signal_len], dtype=int)
+    she_signal = np.zeros(shape=[signal_len], dtype=int)
 
-    hel_signal = np.zeros([len(sse_list)], dtype=int)
-    she_signal = np.zeros([len(sse_list)], dtype=int)
-
-    for i, res in enumerate(sse_list):
-        if res == "H" or res == "G":
-            hel_signal[i] = 1
-        elif res == "E":
-            she_signal[i] = 1
+    for res, assigned_sse in sse_dict.items():
+        if assigned_sse == "H" or assigned_sse == "G":
+            hel_signal[res] = 1
+        elif assigned_sse == "E":
+            she_signal[res] = 1
 
     return hel_signal, she_signal
 
@@ -722,7 +722,7 @@ def cut_sse_dict(start, end, sse_dict):
 
     return new_dict
 
-def get_subdomain_sse(sse_dict, subdomain_boundary, start, end, sse_sequence, stride_outlier_mode=False):
+def get_subdomain_sse(sse_dict:dict, subdomain_boundary:int, start:int, end:int, residue_sse:dict, stride_outlier_mode=False):
     '''
     Fuzzy detection of Helices in Subdomain A and Sheets in Subdomain B
     Count them and return their number + individual boundaries
@@ -765,7 +765,7 @@ def get_subdomain_sse(sse_dict, subdomain_boundary, start, end, sse_sequence, st
         beta, beta_breaks = count_domain_sses(sheet_lowerbound, end, sheets, spacing=1, minimum_length=2, gain_start=start) # 
     
     if stride_outlier_mode == True:
-        hel_bool, she_bool = sse_seqence2bools(sse_sequence)
+        hel_bool, she_bool = sse_seqence2bools(residue_sse)
         alpha, alpha_breaks = count_domain_sses(start,helix_upperbound, helices, spacing=1, minimum_length=3, gain_start=start, sse_bool=hel_bool) # PARSING BY SSE-SEQUENCE
         beta, beta_breaks = count_domain_sses(sheet_lowerbound, end, sheets, spacing=1, minimum_length=2, gain_start=start, sse_bool=she_bool) # 
     #print(f"[DEBUG] sse_func.get_subdomain_sse : \n\t {alpha = } \n\t {beta = }")
@@ -773,7 +773,7 @@ def get_subdomain_sse(sse_dict, subdomain_boundary, start, end, sse_sequence, st
 
 #### NAMING SCHEME ####
 
-def name_sse(sse_dict, subdomain_boundary, start, end, sse_sequence):
+def name_sse(sse_dict, subdomain_boundary, start, end, residue_sse):
     '''
     THIS IS A ROUGH NAMING SCHEME AND >NOT THE NOMENCLATURE<, BUT THIS CAN BE PERFORMED WITHOUT THE UNDERLYING DATASET!
     generate a name map from the information about the GAIN domain
@@ -794,7 +794,7 @@ def name_sse(sse_dict, subdomain_boundary, start, end, sse_sequence):
         name_arr : list
             A list containing the label of the naming scheme for each residue of the GAIN domain
     '''
-    alpha, beta, _, _ = get_subdomain_sse(sse_dict, subdomain_boundary, start, end, sse_sequence)
+    alpha, beta, _, _ = get_subdomain_sse(sse_dict, subdomain_boundary, start, end, residue_sse)
 
     name_arr = np.empty([end-start], dtype='<U16')
     is_helix = np.zeros([end-start], dtype=bool)
