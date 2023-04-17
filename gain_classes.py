@@ -260,13 +260,13 @@ class GainCollection:
         ---------
         None
         '''
-        initial_dict = sse_func.read_alignment(input_alignment, aln_cutoff)
+        #initial_dict = sse_func.read_alignment(input_alignment, aln_cutoff)
         out_dict = {}
         for gain in self.collection:
             sse_alignment_row = np.full([aln_cutoff], fill_value='-', dtype='<U1')
             mapper = sse_func.get_indices(gain.name, gain.sequence, input_alignment, aln_cutoff)
-            for index, resid in enumerate(gain.sse_sequence):
-                sse_alignment_row[mapper[index]] = resid
+            for res_id, sse_letter in gain.sse_sequence.items():
+                sse_alignment_row[mapper[res_id]] = sse_letter
             out_dict[gain.name[:-3]] = sse_alignment_row
 
         # Write to file
@@ -483,7 +483,7 @@ class GainDomain:
         # Either from the standard folder (base dataset) or from an explicitly stated STRIDE file. (new GAIN)
         if explicit_stride_file:
             # Read directly from the explicitly stated STRIDE file. (new GAIN)
-            self.complete_sse_dict = sse_func.read_sse_loc(explicit_stride_file) 
+            self.complete_sse_dict = sse_func.read_sse_loc(explicit_stride_file)
             self.sse_sequence = sse_func.read_sse_asg(explicit_stride_file)
         else:
             # Find SSE data in corresponding STRIDE files (base data). Extract corresponding STRIDE files from the list and read SSE from that. (base dataset)
@@ -582,13 +582,13 @@ class GainDomain:
 
         # get a name map based on enumerating the SSE segments,
         # THIS IS NOT THE ACTUAL NOMENCLATURE BUT A SELF-CONSISTENT METHOD FOR OVERVIEW PURPOSES
-        self.sse_name_map = None
+        """self.sse_name_map = None
         if not skip_naming:
             self.sse_name_map = sse_func.name_sse(self.sse_dict, 
                                               self.subdomain_boundary, 
                                               self.start, 
                                               self.end,
-                                              self.sse_sequence)
+                                              self.sse_sequence)"""
         
         # Find the GPS residues (triad) based on the alignment column of gps-minus-one (GPS-1 N-terminal residue before cleavage site)
         self.GPS = GPS(self.alignment_indices, 
@@ -613,7 +613,8 @@ class GainDomain:
                                                                          stride_outlier_mode=stride_outlier_mode)
             # offset correction. Since the PDB residues are one-indexed, we convert them to python zero-indexed. This is obsolete when the start is already at 0.
             diff = self.start-1
-            if diff < 0: diff = 0
+            if diff < 0: 
+                diff = 0
             self.sda_helices = np.subtract(alpha, diff)
             #print(f"[DEBUG] gain_classes.GainDomain : {alpha = } ,{self.sda_helices = }")
             self.sdb_sheets = np.subtract(beta, diff)
@@ -651,7 +652,7 @@ class GainDomain:
             return sequence
         
         if not without_anchors:
-            self.sse_sequence = build_sse_sequence(self)
+            self.sse_sequence_list = build_sse_sequence(self)
     
     #### GainDomain METHODS
 
