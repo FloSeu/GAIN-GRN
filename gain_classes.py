@@ -10,7 +10,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import sse_func
-from tqdm import tqdm
 import scipy.stats as stats
 
 class GainCollection:
@@ -69,7 +68,8 @@ class GainCollection:
                 domain_threshold=20,
                 coil_weight=0,
                 is_truncated=False,
-                stride_outlier_mode=False): 
+                stride_outlier_mode=False,
+                debug=False): 
         '''
         Constructs the GainCollection objects by initializing one GainDomain instance per given sequence
         
@@ -141,12 +141,13 @@ class GainCollection:
         anchor_hist = np.zeros([aln_cutoff])
         subdomain_boundaries = []
         # Create a GainDomain instance for each sequence file contained in the list
-        #progressbar = tqdm(total=len(sequences))
         invalid_count = 0
+
         for i,seq_tup in enumerate(sequences):
 
             name, sequence = seq_tup[0], seq_tup[1]
-
+            if debug: 
+                print (f'[DEBUG]: {name = }\n\t{sequence =}')
             explicit_stride = [stride for stride in stride_files if name.split("-")[0] in stride]
             if len(explicit_stride) == 0:
                 print(f"Stride file not found for {name}")
@@ -165,14 +166,20 @@ class GainCollection:
                                   coil_weight = coil_weight,
                                   explicit_stride_file = explicit_stride[0],
                                   without_anchors = False,
-                                  skip_naming = True,
                                   is_truncated = is_truncated,
-                                  stride_outlier_mode=stride_outlier_mode
+                                  stride_outlier_mode=stride_outlier_mode,
+                                  debug=debug
                                   )
 
             # Check if the object is an actual GAIN domain
-            if newGain.isValid == True and newGain.GPS.isConsensus == True:
-
+            if newGain.isValid:
+                if not newGain.GPS.isConsensus:
+                    newGain.GPS.info()
+                    input = input("Is this a valid GPS? (yn)")
+                    if input.lower() != 'y':
+                        print(f"Defined GAIN {newGain.name} as invalid.")
+                        invalid_count += 1
+                        continue
                 # process the Anchors and add them to the anchor-histogram
                 for j in newGain.Anchors.alignment_indices:
                     anchor_hist[j] += 1
@@ -182,8 +189,6 @@ class GainCollection:
                 subdomain_boundaries.append(newGain.alignment_indices[newGain.subdomain_boundary-newGain.start])
             else:
                 invalid_count += 1
-
-            #progressbar.update(1)
         
         print(f"Completed collection with {invalid_count} invalid structures.")
         # Kick out empty items from the Collection
@@ -203,8 +208,6 @@ class GainCollection:
         self.alignment_length = aln_cutoff
         self.gps_minus_one_column = gps_index
 
-        #progressbar.close()
-
     def print_gps(self):
         '''
         Prints information about the GPS of each GAIN domain.
@@ -222,7 +225,6 @@ class GainCollection:
                 gain.GPS.info()
             except:
                 print(f"No GPS data for {gain.name}. Likely not a GAIN Domain!")
-
 
     def write_all_seq(self, savename):
         '''
@@ -392,13 +394,12 @@ class GainDomain:
                  domain_threshold=20,
                  coil_weight=0,
                  explicit_stride_file=None,
-                 seq_name=None,
                  without_anchors=False,
-                 skip_naming=False,
                  is_truncated=False,
                  stride_outlier_mode=False,
                  truncation_map=None,
-                 aln_start_res=None):   
+                 aln_start_res=None,
+                 debug=False):   
         ''' Initilalizes the GainDomain object and checks for GainDomain criteria to be fulfilled
         Parameters
         ----------
@@ -443,15 +444,8 @@ class GainDomain:
             Explicit existing STRIDE file for new GAIN domains, when not present in the base dataset. Will manually parse this
             default = None
 
-        seq_name :          str, optional
-            Explicit sequence name to be found in the alignment file. Should be specified for GAIN domains not in the base dataset. 
-            Overwrites other name variables.
-
         without_anchors :   bool, optional
             Skips the Detection and calculation of self.Anchors for filtering purposes.
-
-        skip_naming :       bool, optional
-            Skips the alternative naming of SSE - for filtering purposes
 
         is_truncated :      bool, optional
             indicates if the sequence is already truncated to only contain the GAIN domain
@@ -461,6 +455,9 @@ class GainDomain:
 
         aln_start_res :     int, optional
             if already predetermined for mafft --add sequences, also pass the start column wtihin the alignment.
+        
+        debug:              bool, optional
+            specify if debug messages should be printed
         Returns
         ----------
         None
@@ -474,7 +471,8 @@ class GainDomain:
             else:
                 print("No name specified. Exiting")
                 return None
-        #print(f"\n[DEBUG] gain_classes.GainDomain : Initializing GainDomain Object \n Name : {name}")#.\n{fasta_file = }, {name = }, {sequence = }")
+        if debug:
+            print(f"\n[DEBUG] gain_classes.GainDomain : Initializing GainDomain Object \n Name : {name}")
 
         # Initalize SSE Dict (LOC) and the SSE sequence (ASG) from STRIDE outfiles.
         # Either from the standard folder (base dataset) or from an explicitly stated STRIDE file. (new GAIN)
@@ -514,7 +512,9 @@ class GainDomain:
         # Initialize residue indices as list, starting form zero, indexing EXISTING residues including "X" etc.
         self.index = list(range(0, self.end-self.start+1))
         # Initialize one-letter GAIN sequence as list
-        #print(f"[DEBUG] gain_classes.GainDomain :\n\t{self.start = }\n\t{self.end = }\n\t{len(sequence) = }\n\t{self.end-self.start+1 = }")
+        if debug:
+            print(f"[DEBUG] gain_classes.GainDomain :\n\t{self.start = }\n\t{self.end = }\n\t{len(sequence) = }\n\t{self.end-self.start+1 = }")
+
         if is_truncated:
             # SANITY CHECK: There might occur a case where the GAIN domain is detected anew (i.e. when different parameters are used). There might be a truncation therefore.
             #               If that is the case, truncate the sequence N-terminally to that only ((self.end-self.start+1)) residues are included
@@ -524,10 +524,10 @@ class GainDomain:
                 self.sequence = np.asarray(list(sequence[len(sequence)-self.end+self.start:])) # Begin with the new first residue, end normally
                 print(f"[DEBUG]: gain_classes.GainDomain : \n\t {len(sequence) = }, {len(self.sequence) = }\n{sequence}\n{''.join(self.sequence)}")
 
-            elif len(sequence) < (self.end-self.start+1): 
+            elif len(sequence) < (self.end-self.start): 
                 # This is an edge case where the signal detection identifies a Sheet-segment in Subdomain A. Therefore, non-cons. GAIN domain.
                 print(f"[DEBUG] gain_classes.GainDomain : {self.name}\nSEQUENCE LENGTH SHORTER THAN DETECTED GAIN BOUNDARIES.!\n"
-                    f"IT WILL BE DECLARED INVALID.\n{len(sequence) =}\n{self.end+self.start = }")
+                    f"IT WILL BE DECLARED INVALID.\n{len(sequence) = }\n{self.end-self.start = }")
                 self.sse_dict = sse_func.cut_sse_dict(self.start, self.end, self.complete_sse_dict)
                 print(f"[DEBUG] gain_classes.GainDomain.__init__():\n {self.subdomain_boundary = }, {type(self.subdomain_boundary) = }")
                 if self.subdomain_boundary is None :
@@ -547,9 +547,8 @@ class GainDomain:
             For base dataset, this will be the base dataset alignment,
             For new GAIN, this will be the alignment appended by the adding method.
             Returns empty list if failed. '''
-        #print(f"DEBUG", self.sequence, type(self.sequence), self.sequence.shape)
-        #print(f"DEBUG: Getting alignment indices with: {self.name}, {self.sequence.shape = }, {alignment_file} {type(alignment_dict)}")
-        #print(f"{self.sequence = }\n{self.start = }\n{self.end = }\n{len(self.sequence) = }")
+        if debug:
+            print(f"DEBUG GainDomain.__init__ :\n\t{self.sequence}\n\t{type(self.sequence) = }\n\t{self.sequence.shape = }\n\t{alignment_file = }\n\t{type(alignment_dict) = }")
         
         if truncation_map is not None: 
             cut_truncation_map = truncation_map[self.start:self.end+1]
@@ -563,8 +562,9 @@ class GainDomain:
                                                         alignment_dict = alignment_dict,
                                                         truncation_map = cut_truncation_map,
                                                         aln_start_res = aln_start_res
-                                                        ) # str(self.sequence) is a Patch!
-        #print(f"DEBUG: {self.alignment_indices = }")
+                                                        ) 
+        if debug:
+            print(f"[DEBUG] GainDomain : {self.alignment_indices = }")
 
         # Check if sse_func.get_indices failed
         try:
@@ -576,16 +576,6 @@ class GainDomain:
 
         # Cut down the SSE dictionary down to the GAIN only
         self.sse_dict = sse_func.cut_sse_dict(self.start, self.end, self.complete_sse_dict)
-
-        # get a name map based on enumerating the SSE segments,
-        # THIS IS NOT THE ACTUAL NOMENCLATURE BUT A SELF-CONSISTENT METHOD FOR OVERVIEW PURPOSES
-        """self.sse_name_map = None
-        if not skip_naming:
-            self.sse_name_map = sse_func.name_sse(self.sse_dict, 
-                                              self.subdomain_boundary, 
-                                              self.start, 
-                                              self.end,
-                                              self.sse_sequence)"""
         
         # Find the GPS residues (triad) based on the alignment column of gps-minus-one (GPS-1 N-terminal residue before cleavage site)
         self.GPS = GPS(self.alignment_indices, 
@@ -607,7 +597,8 @@ class GainDomain:
                                                                          self.start, 
                                                                          self.end,
                                                                          self.sse_sequence,
-                                                                         stride_outlier_mode=stride_outlier_mode)
+                                                                         stride_outlier_mode=stride_outlier_mode,
+                                                                         debug=debug)
             # offset correction. Since the PDB residues are one-indexed, we convert them to python zero-indexed. This is obsolete when the start is already at 0.
             diff = self.start-1
             if diff < 0: 
@@ -976,7 +967,7 @@ class GPS:
         '''
         minus_one_residue = sse_func.detect_GPS(alignment_indices, gps_minus_one)
         #print(f"[DEBUG] gain_classes.GPS : {minus_one_residue = }, {start = }")
-        if minus_one_residue:
+        if minus_one_residue is not None:
             #print(f"DEBUG: {start = }")
             self.isConsensus = True
             self.indices = index[minus_one_residue-1:minus_one_residue+2]
@@ -984,7 +975,6 @@ class GPS:
                 print(f"[DEBUG] gain_classes.GPS : not enough GPS residues! {self.indices}")
                 #print(f"[DEBUG] gain_classes.GPS : indices specified: {minus_one_residue = }, \n, "
                     #f"{self.indices = }, {index = } {len(index) = }\n,{alignment_indices = },\n {len(alignment_indices) = }, {gps_minus_one = }")
-            
         else:
             self.isConsensus = False
             last_sheets = sse_dict["Strand"][-2:]
@@ -995,6 +985,7 @@ class GPS:
                 self.indices = None
             else:
                 self.indices = index[last_sheets[0][1]+1-start:last_sheets[1][0]-start]
+
         if self.indices is not None:
         #print(f"[DEBUG] gain_classes.GPS : {self.indices = }")
             self.sequence = sequence[self.indices[0]:self.indices[-1]+1]
