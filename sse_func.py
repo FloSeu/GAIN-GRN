@@ -836,11 +836,12 @@ def get_subdomain_sse(sse_dict:dict, subdomain_boundary:int, start:int, end:int,
         beta, beta_breaks = count_domain_sses(sheet_lowerbound, end, sheets, spacing=1, minimum_length=2, debug=debug) # 
     
     if stride_outlier_mode == True:
+        # This version should be generall the case for GAIN domains evaluated in GainCollection.__init__()
         hel_bool, she_bool = sse_sequence2bools(residue_sse)
         alpha, alpha_breaks = count_domain_sses(start,helix_upperbound, helices, spacing=1, minimum_length=3, sse_bool=hel_bool, debug=debug) # PARSING BY SSE-SEQUENCE
         beta, beta_breaks = count_domain_sses(sheet_lowerbound, end, sheets, spacing=1, minimum_length=2, sse_bool=she_bool, debug=debug) # 
     if debug:
-        print(f"[DEBUG] sse_func.get_subdomain_sse : \n\t {alpha = } \n\t {beta = }")
+        print(f"[DEBUG] sse_func.get_subdomain_sse : \n\t{stride_outlier_mode = }\n\t {alpha = } \n\t {beta = }")
     return alpha, beta, alpha_breaks, beta_breaks
 
 #### NAMING SCHEME ####

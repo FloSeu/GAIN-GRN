@@ -1,4 +1,4 @@
-# classes.py
+# gain_classes.py
 
 # Object structure:
 #
@@ -19,7 +19,6 @@ class GainCollection:
 
     Attributes
     ----------
-
     collection : list
         List of GainDomain instances
 
@@ -175,11 +174,6 @@ class GainCollection:
             if newGain.isValid:
                 if not newGain.GPS.isConsensus:
                     newGain.GPS.info()
-                    input = input("Is this a valid GPS? (yn)")
-                    if input.lower() != 'y':
-                        print(f"Defined GAIN {newGain.name} as invalid.")
-                        invalid_count += 1
-                        continue
                 # process the Anchors and add them to the anchor-histogram
                 for j in newGain.Anchors.alignment_indices:
                     anchor_hist[j] += 1
@@ -599,12 +593,15 @@ class GainDomain:
                                                                          self.sse_sequence,
                                                                          stride_outlier_mode=stride_outlier_mode,
                                                                          debug=debug)
+
             # offset correction. Since the PDB residues are one-indexed, we convert them to python zero-indexed. This is obsolete when the start is already at 0.
-            diff = self.start-1
+            diff = self.start
             if diff < 0: 
+                raise IndexError("NOTE: diff < 0. This should not be the case.")
                 diff = 0
             self.sda_helices = np.subtract(alpha, diff)
-            #print(f"[DEBUG] gain_classes.GainDomain : {alpha = } ,{self.sda_helices = }")
+            if debug:
+                print(f"[DEBUG] gain_classes.GainDomain : {alpha = } ,{self.sda_helices = }")
             self.sdb_sheets = np.subtract(beta, diff)
             self.a_breaks = a_breaks
             self.b_breaks = b_breaks
