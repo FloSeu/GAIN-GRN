@@ -44,23 +44,26 @@ def read_sse_asg(file):
         residue_sse : dict
             DICT containing a sequence of all letters assigned to the residues with the key being the present residue
     '''
-    residue_sse = {}
 
     with open(file) as f:
+        asgs = [l for l in f.readlines() if l.startswith("ASG")]
 
-        for l in f.readlines():
+    first_res = int(asgs[0].split(None)[3])
+    last_res = int(asgs[-1].split(None)[3]) 
+    residue_sse = {k:"X" for k in range(first_res, last_res+1)}
 
-            if l.startswith("ASG"):     # ASG is the per-residue ASSIGNMENT of SSE
-                                        # LOC is already grouped from [start - ]
-                items = l.split(None)   # [24] has the SSE one-letter code
-                # Example lines:
-                # items[i]:
-                #  0    1 2    3    4    5             6         7         8         9        10
-                #ASG  THR A  458  453    E        Strand   -123.69    131.11       4.2      ~~~~
-                #ASG  SER A  459  454    E        Strand    -66.77    156.86      10.4      ~~~~
-                # 3 is the PDB index, 4 is the enumerating index, this is crucial for avoiding offsets, always take 3
-                residue_sse[int(items[3])] = items[5]
-
+    for l in asgs:              # ASG is the per-residue ASSIGNMENT of SSE
+                                # LOC is already grouped from [start - ]
+        items = l.split(None)   # [24] has the SSE one-letter code
+        # Example lines:
+        # items[i]:
+        #  0    1 2    3    4    5             6         7         8         9        10
+        #ASG  THR A  458  453    E        Strand   -123.69    131.11       4.2      ~~~~
+        #ASG  SER A  459  454    E        Strand    -66.77    156.86      10.4      ~~~~
+        # 3 is the PDB index, 4 is the enumerating index, this is crucial for avoiding offsets, always take 3
+        residue_sse[int(items[3])] = items[5]
+        # if there is missing keys, just label them "X", since these are residues skipped by AlphaFold2 (i.e. "X")
+        
     return residue_sse
 
 def read_seq(file, return_name=False):
@@ -429,7 +432,7 @@ def count_domain_sses(domain_start, domain_end, tuple_list=None, spacing=1, mini
     sse_bool[:domain_start] = 0
     up_edges = []
     down_edges = []
-    break_residues = []
+    #break_residues = []
 
     for i in range(len(sse_bool)-1):
         if sse_bool[i] and not sse_bool[i+1]: # [.. 1 0 ..]
@@ -448,27 +451,28 @@ def count_domain_sses(domain_start, domain_end, tuple_list=None, spacing=1, mini
         if debug: print(f"{i = } {n_elements = }\n\t{up_edges = }\n\t{down_edges = }")
         unordered_length = up_edges[i+1] - down_edges[i]
         if unordered_length <= spacing:
-            breaks = list(range(down_edges[i], up_edges[i+1]))
-            break_residues.append(breaks)
+            #breaks = list(range(down_edges[i], up_edges[i+1]))
+            #break_residues.append(breaks)
             del up_edges[i+1]
             del down_edges[i]
             n_elements -= 1
             continue
         # If this is a unique element, append empty breaks.
-        break_residues.append([])
+        #break_residues.append([])
         i += 1
     
-    # With the cleaned up lists of up_edges and down_edges, get all elements satisfying minium_length.
+    # With the cleaned up lists of up_edges and down_edges, get all elements satisfying minium_length and within boundaries.
     intervals = []
     for i in range(n_elements):
         element_length = down_edges[i] - up_edges[i]
         if element_length < minimum_length:
             continue
-        intervals.append([up_edges[i], down_edges[i]-1])
+        if up_edges[i] < domain_end:
+            intervals.append([up_edges[i], down_edges[i]-1])
     if debug:
-        print(f"[DEBUG] sse_func.count_domain_sses : RETURNING \n\t{intervals = }\n\t{break_residues = }")
+        print(f"[DEBUG] sse_func.count_domain_sses : RETURNING \n\t{intervals = }")#\n\t{break_residues = }")
 
-    return np.asarray(intervals), break_residues
+    return np.asarray(intervals)#, break_residues
 
 def count_domain_sses_old(domain_start, domain_end, tuple_list=None, spacing=1, minimum_length=3, sse_bool=None):
     ''' 
@@ -832,17 +836,17 @@ def get_subdomain_sse(sse_dict:dict, subdomain_boundary:int, start:int, end:int,
         sheet_lowerbound = subdomain_boundary
 
     if stride_outlier_mode == False:    
-        alpha, alpha_breaks = count_domain_sses(start,helix_upperbound, helices, spacing=1, minimum_length=3, debug=debug) # PARSING BY SSE DICTIONARY
-        beta, beta_breaks = count_domain_sses(sheet_lowerbound, end, sheets, spacing=1, minimum_length=2, debug=debug) # 
+        alpha = count_domain_sses(start,helix_upperbound, helices, spacing=1, minimum_length=3, debug=debug) # PARSING BY SSE DICTIONARY
+        beta = count_domain_sses(sheet_lowerbound, end, sheets, spacing=1, minimum_length=2, debug=debug) # 
     
     if stride_outlier_mode == True:
         # This version should be generall the case for GAIN domains evaluated in GainCollection.__init__()
         hel_bool, she_bool = sse_sequence2bools(residue_sse)
-        alpha, alpha_breaks = count_domain_sses(start,helix_upperbound, helices, spacing=1, minimum_length=3, sse_bool=hel_bool, debug=debug) # PARSING BY SSE-SEQUENCE
-        beta, beta_breaks = count_domain_sses(sheet_lowerbound, end, sheets, spacing=1, minimum_length=2, sse_bool=she_bool, debug=debug) # 
+        alpha = count_domain_sses(start, helix_upperbound, helices, spacing=1, minimum_length=3, sse_bool=hel_bool, debug=debug) # PARSING BY SSE-SEQUENCE
+        beta = count_domain_sses(sheet_lowerbound, end, sheets, spacing=1, minimum_length=2, sse_bool=she_bool, debug=debug) # 
     if debug:
         print(f"[DEBUG] sse_func.get_subdomain_sse : \n\t{stride_outlier_mode = }\n\t {alpha = } \n\t {beta = }")
-    return alpha, beta, alpha_breaks, beta_breaks
+    return alpha, beta
 
 #### NAMING SCHEME ####
 
@@ -1047,9 +1051,7 @@ def make_anchor_dict(fixed_anchors, sd_boundary):
         anchor_dict[s] = "S"+str(idx+1)
     return anchor_dict
 
-    #### CREATING THE NOMENCLATURE
-
-def create_indexing(gain_domain, anchors, anchor_occupation, anchor_dict, outdir=None, offset=0, silent=False, split_mode='single',debug=False):
+def create_indexing(gain_domain, anchors:dict, anchor_occupation:dict, anchor_dict:dict, outdir=None, offset=0, silent=False, split_mode='single',debug=False):
     ''' 
     Makes the indexing list, this is NOT automatically generated, since we do not need this for the base dataset
     Prints out the final list and writes it to file if outdir is specified
@@ -1098,39 +1100,42 @@ def create_indexing(gain_domain, anchors, anchor_occupation, anchor_dict, outdir
             for j, name in enumerate(nom_list[gain_domain.start:]):
                 file.write(f"{gain_domain.sequence[j]}  {str(j+gain_domain.start+offset).rjust(4)}  {name.rjust(7)}\n")
 
-    def disambiguate_anchors(gain_domain, stored_anchor_weight, stored_res, new_anchor_weight, new_res, sse, break_residues, mode='single'):
+    def disambiguate_anchors(gain_domain, stored_anchor_weight, stored_res, new_anchor_weight, new_res, sse, coiled_residues, outlier_residues, mode='single'):
+        #Outlier and Coiled residues are indicated as relative indices (same as sse, stored_res, new_res etc.)
         #print(f"[DEBUG] disambiguate_anchors: {stored_anchor_weight = }, {stored_res = }, {new_anchor_weight = }, {new_res = }, {sse = }")
-        def terminate(sse, center_res, adj_break_res):
-            #print(f"DEBUG terminate : {sse = }, {sse[0] = }, {sse[1] = }, {center_res = }, {adj_break_res = }")
-            # neg bound
-            offset = 0
-            while center_res-offset >= sse[0]:
-                if center_res-offset == sse[0]: 
-                    N_boundary = center_res - offset
-                    break
-                if center_res-offset in adj_break_res:
-                    N_boundary = center_res - offset + 1   # Do not include the BREAK residue itgain_domain
-                    break
-                offset+=1
-            
-            offset = 0
-            while center_res+offset <= sse[1]:
-                if center_res+offset == sse[1]: 
-                    C_boundary = center_res + offset
-                    break
-                if center_res+offset in adj_break_res:
-                    C_boundary = center_res + offset - 1   # Do not include the BREAK residue itgain_domain
-                    break
-                offset+=1
+        def terminate(sse, center_res, break_residues, include=False):
+            #print(f"DEBUG terminate : {sse = }, {sse[0] = }, {sse[1] = }, {center_res = }, {adj_break_res = }")           
+            # look from the center res to the N and C direction, find the first break residue
+            # Return the new boundaries
+            if include:
+                terminal = 0
+            if not include:
+                terminal = -1
 
+            n_breaks = [r for r in break_residues if r < center_res and r >= sse[0]]
+            c_breaks = [r for r in break_residues if r > center_res and r <= sse[1]]
+            
+            if n_breaks != []:
+                N_boundary = max(n_breaks) - terminal
+            else:
+                N_boundary = sse[0]
+            
+            if c_breaks != []:
+                C_boundary = min(c_breaks) + terminal
+            else:
+                C_boundary = sse[1]
+            
             return [N_boundary, C_boundary]
 
         # this mode indicates if the anchor will just be overwritten instead of split,
         #   this will be set to OFF if there are breaks between both anchors
-        priority_mode = True
+        hasCoiled = False
+        hasOutlier = False
 
-        # First case, there are no break residues
-        if break_residues == []:
+        # GO THROUGH CASES DEPENDING ON PRESENT BREAKS
+
+        # a) there are no break residues
+        if coiled_residues == [] and outlier_residues == []:
             if new_anchor_weight > stored_anchor_weight:
                 name_list, cast_values = create_name_list(sse, new_res, anchor_dict[gain_domain.alignment_indices[new_res]])
             else: 
@@ -1138,16 +1143,22 @@ def create_indexing(gain_domain, anchors, anchor_occupation, anchor_dict, outdir
             
             return [(sse, name_list, cast_values)], False
 
-        adjusted_break_residues = [res+sse[0] for res in break_residues]
+        # b) check first if there is a Coiled residue in between the two conflicting anchors
+        for coiled_res in coiled_residues:
+            if stored_res < coiled_res and coiled_res < new_res:
+                hasCoiled = True 
+            if new_res < coiled_res and coiled_res < stored_res:
+                hasCoiled = True
 
-        # Check if there is a break residue in between the two conflicting anchors
-        for break_res in adjusted_break_residues:
-            if stored_res < break_res and break_res < new_res:
-                priority_mode = False 
-            if new_res < break_res and break_res < stored_res:
-                prority_mode = False
+        # c) check if there is an outlier residue in between the two conflicting anchors
+        for outlier_res in outlier_residues:
+            if stored_res < outlier_res and outlier_res < new_res:
+                hasOutlier = True 
+            if new_res < outlier_res and outlier_res < stored_res:
+                hasOutlier = True
 
-        if priority_mode == True:
+        # If there are no breaks, take the anchor with higher occupation, discard the other.
+        if hasCoiled == False and hasOutlier == False:
             if not silent: 
                 print(f"DEBUG gain_classes.disambiguate_anchors : no break found between anchors, will just overwrite.")
             if new_anchor_weight > stored_anchor_weight:
@@ -1157,25 +1168,45 @@ def create_indexing(gain_domain, anchors, anchor_occupation, anchor_dict, outdir
             
             return [(sse, name_list, cast_values)], False
 
-        # Find the closest break_residue to the lower weight anchor
+        # If breaks are present, find the closest break_residue to the lower weight anchor
         if mode == 'single':
+            # "SINGLE" mode: Go and find the split closest to the low-priority anchor. 
+            #   Split there and include everything else (even other break residues) in the higher priority anchor segment
             if stored_anchor_weight > new_anchor_weight:
                 lower_res = new_res
             else:
                 lower_res = stored_res
 
-            
-            print(f"{adjusted_break_residues = }, {lower_res = }")
+            if hasCoiled:
+                breaker_residues = coiled_residues
+            if not hasCoiled:
+                breaker_residues = outlier_residues
+            print(f"{breaker_residues = }, {lower_res = }")
+
+            lower_seg = terminate(sse, lower_res, breaker_residues, include= not hasCoiled)
+            # The rest will be assigned the other SSE, including the breaker residue if it is not coiled:
+            lower_n, lower_c = lower_seg[0], lower_seg[1]
+            if hasCoiled:
+                terminal = -1
+            else:
+                terminal = 0
+            print(f"{sse = }")
+            print(f"{sse[0]-lower_n = }, {sse[1]-lower_c = }")
+            if sse[0]-lower_n > sse[1]-lower_c: # either should be 0 or positive. This case: lower_seg is C-terminal
+                upper_seg = [sse[0], lower_n+terminal]
+            else: # This case: lower_seg is N-terminal
+                upper_seg = [lower_c-terminal, sse[1]]
+
             # Go in left and right direction, check where there is the first break
             breaker = None
             offset = 1
             while offset < 20:
-                if lower_res + offset in adjusted_break_residues:
-                    offset_idx = adjusted_break_residues.index(lower_res + offset)
+                if lower_res + offset in breaker_residues:
+                    offset_idx = breaker_residues.index(lower_res + offset)
                     breaker = lower_res + offset
                     break
-                if lower_res - offset in adjusted_break_residues:
-                    offset_idx = adjusted_break_residues.index(lower_res - offset)
+                if lower_res - offset in breaker_residues:
+                    offset_idx = breaker_residues.index(lower_res - offset)
                     breaker = lower_res - offset
                     break
 
@@ -1186,8 +1217,13 @@ def create_indexing(gain_domain, anchors, anchor_occupation, anchor_dict, outdir
                 return None, None
 
             # Divide SSE via BREAKER into two segments, create two separate name_list instances for them
-            seg_N = [sse[0],adjusted_break_residues[offset_idx]-1]
-            seg_C = [adjusted_break_residues[offset_idx]+1, sse[1]]
+            # If the breaker was a coil, set terminal to 1 to exclude this residue; otherwise, include it.
+            if hasCoiled:
+                terminal = 1
+            if not hasCoiled:
+                terminal = 0
+            seg_N = [sse[0],breaker_residues[offset_idx]-terminal]
+            seg_C = [breaker_residues[offset_idx]+terminal, sse[1]]
 
             if stored_res < breaker:
                 seg_stored = seg_N
@@ -1195,12 +1231,18 @@ def create_indexing(gain_domain, anchors, anchor_occupation, anchor_dict, outdir
             else:
                 seg_stored = seg_C
                 seg_new = seg_N
+            
+            print(f"[TESTING] terminate :{upper_seg = } {lower_seg = }")
+            print(f"[TESTING] terminate :{seg_stored = } {seg_new = } {breaker = }")
 
         if mode == 'double':
-            seg_stored = terminate(sse, stored_res, adjusted_break_residues)
-            seg_new = terminate(sse, new_res, adjusted_break_residues)
+            # "DOUBLE" mode: from both sides of the anchor, find the closest breaker residue and terminate each of the new segments
+            seg_stored = terminate(sse, stored_res, breaker_residues, include= not hasCoiled)
+            seg_new = terminate(sse, new_res, breaker_residues, include= not hasCoiled)
 
-        if not silent: print(f"[NOTE] disambiguate_anchors: Split the segment into: {seg_stored = }, {seg_new = }")
+        if not silent: 
+            print(f"[NOTE] disambiguate_anchors: Split the segment into: {seg_stored = }, {seg_new = }")
+
         stored_name_list, stored_cast_values = create_name_list(seg_stored, stored_res, anchor_dict[gain_domain.alignment_indices[stored_res]])
         new_name_list, new_cast_values = create_name_list(seg_new, new_res, anchor_dict[gain_domain.alignment_indices[new_res]])
 
@@ -1224,19 +1266,14 @@ def create_indexing(gain_domain, anchors, anchor_occupation, anchor_dict, outdir
     unindexed = []
     # One-indexed Indexing list for each residue, mapping for the actual residue index
     nom_list = np.full([gain_domain.end+1], fill_value='      ', dtype='<U7')
-    breaks = [gain_domain.a_breaks, gain_domain.b_breaks]
-    if not silent: print(f"{breaks = }")
-    for i,typus in enumerate([gain_domain.sda_helices, gain_domain.sdb_sheets]): # Both types will be indexed separately
-        # Where the corresponding breaks are located
-        type_breaks = breaks[i]
-        if not silent:
-            print(type_breaks)
 
+    for i,typus in enumerate([gain_domain.sda_helices, gain_domain.sdb_sheets]): # Both types will be indexed separately
         # Go through each individual SSE in the GAIN SSE dictionary
         for idx, sse in enumerate(typus):
             # Get first and last residue of this SSE
-            try:first_col = gain_domain.alignment_indices[sse[0]]
-            except: continue
+            #try:
+            first_col = gain_domain.alignment_indices[sse[0]]
+            #except: continue
             # Error correction. Sometimes the detected last Strand exceeds the GAIN boundary.
             if debug: print(f"DEBUG {sse[1] = }; {gain_domain.end-gain_domain.start = }, {len(gain_domain.alignment_indices) = }")
             if sse[1] > gain_domain.end-gain_domain.start-1:
@@ -1245,6 +1282,7 @@ def create_indexing(gain_domain, anchors, anchor_occupation, anchor_dict, outdir
             else:
                 last_col = gain_domain.alignment_indices[sse[1]]
                 sse_end = sse[1]
+
             exact_match = False                             # This is set to True, otherwise continue to Interval search
             fuzzy_match = False                             # Flag for successful Interval search detection
             ambiguous = False                               # Flag for ambiguity
@@ -1262,11 +1300,11 @@ def create_indexing(gain_domain, anchors, anchor_occupation, anchor_dict, outdir
 
                     if exact_match == False:  
                         if debug: print(f"PEAK FOUND: @ {sse_res = }, {sse_idx = }, {anchor_dict[sse_idx]}")
-                        sse_name = anchor_dict[sse_idx]
+                        #sse_name = anchor_dict[sse_idx]
                         anchor_idx = np.where(anchors == sse_idx)[0][0]
                         if debug: print(f"{np.where(anchors == sse_idx)[0] = }, {sse_idx = }, {anchor_idx = }")
                         stored_anchor_weight = anchor_occupation[anchor_idx]
-                        stored_anchor = anchors[anchor_idx]
+                        #stored_anchor = anchors[anchor_idx]
                         stored_res = sse_res
                         name_list, cast_values = create_name_list(sse, sse_res, anchor_dict[sse_idx])
                         # name_list has the assignment for the SSE, cast_values contains the passed values for dict casting
@@ -1283,16 +1321,31 @@ def create_indexing(gain_domain, anchors, anchor_occupation, anchor_dict, outdir
                         print(f"[NOTE] GainDomain.create_indexing : ANCHOR AMBIGUITY in this SSE:")
                         print(f"\n\t {sse_idx = },")
                         print(f"\n\t {anchor_dict[sse_idx] = },")
-                        print(f"{type_breaks = } \t {idx = }")
-                        print(f"\n\t {type_breaks[idx] = }")
                     # if the new anchor is scored better than the first, replace!
+
+                    # Check for residues that have assigned "C" or "h" in GainDomain.sse_sequence
+                    coiled_residues = []
+                    outlier_residues = []
+                    max_key = max(gain_domain.sse_sequence.keys())
+                    for i in range(sse[0]+gain_domain.start, sse[1]+gain_domain.start+1):
+                        if i > max_key:
+                            if debug:
+                                print("[DEBUG]: GainDomain.create_indexing. {i = } exceeded {max_key = }")
+                            break
+                        if gain_domain.sse_sequence[i] ==  "C":
+                            coiled_residues.append(i-gain_domain.start)
+                        if gain_domain.sse_sequence[i] == 'h':
+                            outlier_residues.append(i-gain_domain.start)
+                    if debug:
+                        print(f"[DEBUG] GainDomain.create_indexing :\n\t{coiled_residues  = }\n\t{outlier_residues = }")
                     disambiguated_lists, isSplit = disambiguate_anchors(gain_domain,
                                                                         stored_anchor_weight=stored_anchor_weight,
                                                                         stored_res=stored_res,
                                                                         new_anchor_weight=anchor_occupation[np.where(anchors == sse_idx)[0][0]],
                                                                         new_res=sse_res,
                                                                         sse=sse,
-                                                                        break_residues=type_breaks[idx],
+                                                                        coiled_residues=coiled_residues,
+                                                                        outlier_residues=outlier_residues,
                                                                         mode=split_mode)
                     if not silent: print(disambiguated_lists)
                     sse_adj, name_list, cast_values = disambiguated_lists[0]
