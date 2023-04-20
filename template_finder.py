@@ -654,6 +654,7 @@ def construct_structural_alignment(template_gain_domain, list_of_gain_obj, gain_
     msa_array = np.full(shape=(len(list_of_gain_obj)+1, len(template_gain_domain.sequence)), fill_value='-', dtype = '<U2')
     msa_array[0,:] = template_gain_domain.sequence
     all_names = [template_gain_domain.name]
+    template_seq_len = len(template_gain_domain.sequence)
     #for gesamtfile in glob.glob(f"{gesamt_folder}/*.out"):
     for gain_idx, gain in enumerate(list_of_gain_obj):
         if gain.name == template_gain_domain.name: # QC: ensure the template is not aligned to itgain_obj.
@@ -662,16 +663,28 @@ def construct_structural_alignment(template_gain_domain, list_of_gain_obj, gain_
         if debug: 
             print(gain.name)
             with open(f'{gesamt_folder}/{gain_indices[gain_idx]}.out') as out:
-                data = out.readlines()[42:46]
+                data = out.readlines()[43]
                 print(data)
             
         template_pairs, _ = read_gesamt_pairs(f'{gesamt_folder}/{gain_indices[gain_idx]}.out')
+        if not template_pairs: # Check if the dict is empty
+            print(f"[NOTE]: GESAMT Alignment has failed. Skipping: {gain.name = } with \n\t{gain.sda_helices =}\n\t{gain.sdb_sheets = }")
+            continue
         # This is a dict: { 516: (837, 1.08),... }
         if debug:
-            print(f"[DEBUG] {template_pairs = } {len(gain.sequence)} {gain.start = } {gain.end = }")
-        res_matches = {k-template_gain_domain.start : gain.sequence[v[0]-gain.start] for k,v in template_pairs.items() if v[0] is not None and v[0]-gain.start < len(gain.sequence) and v[0]-gain.start >=0}
+            print(f"[DEBUG] {template_pairs = }\n\t{len(gain.sequence)} {gain.start = } {gain.end = }\n\t{template_gain_domain.start = }")
+        
+        res_matches = {}
+        
+        for k,v in template_pairs.items():
+            if v[0] is not None and v[0]-gain.start >= 0 and v[0]-gain.start < len(gain.sequence) and k-template_gain_domain.start < template_seq_len:
+                #print(f"[DEBUG] {v[0] = }")
+                res_matches[k-template_gain_domain.start] = gain.sequence[v[0]-gain.start]
+        #res_matches = {k-template_gain_domain.start : gain.sequence[v[0]-gain.start] for k,v in template_pairs.items() if v[0] is not None and v[0]-gain.start < len(gain.sequence) and v[0]-gain.start >=0}
         # This is a dict matching the aln columns : {0: "V", 1, "A", 4:"C"}, non-matched residues are not present (None value)
         # map to alignment array
+        if debug:
+            print(f"[DEBUG] {min(list(res_matches.keys())) = }, {max(list(res_matches.keys())) = }\n\t{msa_array.shape = }")
         for resid, res in res_matches.items():
             msa_array[gain_idx+1,resid] = res
 
@@ -953,7 +966,7 @@ def assign_indexing(gain_obj, file_prefix: str, gain_pdb: str, template_dir: str
                     'D' :{'H1.D1':390 , 'H2':420 , 'H3':435 , 'H4':480 , 'H5':488 , 'H6':506 },
                     'E1':{'H1.E1':142 ,            'H3':159 , 'H4':198 ,            'H6':221 },
                     'E5':{                         'H3':268 , 'H4':303 ,            'H6':329 },
-                    #'F5':{'H1'   :133 , 'H2':145 , 'H3':158 , 'H4':303 , 'H5':201 , 'H6':218 },
+                    'F5':{'H1'   :536 , 'H2':555 , 'H3':572 , 'H4':606 , 'H5':614 , 'H6':632 },
                     'F4':{'H1.F4':133 , 'H2':145 , 'H3':158 ,            'H5':201 , 'H6':218 },
                     'G7':{'H1'   :148 , 'H2':164 , 'H3':178 , 'H4':212 , 'H5':219 , 'H6':239 },
                     'L' :{'H1'   :494 , 'H2':509 , 'H3':521 , 'H4':580 , 'H5':588 , 'H6':608 },
@@ -1238,14 +1251,14 @@ def create_compact_indexing(gain_obj, subdomain:str, actual_anchors:dict, thresh
             if debug:
                 print(f"[DEBUG] create_compact_indexing :\n\t{coiled_residues  = }\n\t{outlier_residues = }")
                 
-            split_segments = split_segments(sse=[first_res, last_res], 
+            split_segs = split_segments(sse=[first_res, last_res], 
                                             found_anchors=found_anchors,
                                             res2anchor=res2anchor,
                                             coiled_residues=coiled_residues, 
                                             outlier_residues=outlier_residues, 
                                             hard_cut=hard_cut, 
                                             debug=debug)
-            for anchor_res, segment in split_segments.items():
+            for anchor_res, segment in split_segs.items():
                 name_list, cast_values = create_name_list(segment, anchor_res, res2anchor[anchor_res])
                 # cast them also?
                 nom_list, indexing_dir, indexing_centers = cast(nom_list, indexing_dir, indexing_centers, segment, name_list, cast_values)
