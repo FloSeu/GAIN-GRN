@@ -586,13 +586,13 @@ class GainDomain:
 
         if self.hasSubdomain == True:
             # enumeration + evaluation of subdomain SSE composition
-            alpha, beta, a_breaks, b_breaks = sse_func.get_subdomain_sse(self.sse_dict, 
-                                                                         self.subdomain_boundary,
-                                                                         self.start, 
-                                                                         self.end,
-                                                                         self.sse_sequence,
-                                                                         stride_outlier_mode=stride_outlier_mode,
-                                                                         debug=debug)
+            alpha, beta = sse_func.get_subdomain_sse(self.sse_dict, 
+                                                     self.subdomain_boundary,
+                                                     self.start, 
+                                                     self.end,
+                                                     self.sse_sequence,
+                                                     stride_outlier_mode=stride_outlier_mode,
+                                                     debug=debug)
 
             # offset correction. Since the PDB residues are one-indexed, we convert them to python zero-indexed. This is obsolete when the start is already at 0.
             diff = self.start
@@ -603,9 +603,6 @@ class GainDomain:
             if debug:
                 print(f"[DEBUG] gain_classes.GainDomain : {alpha = } ,{self.sda_helices = }")
             self.sdb_sheets = np.subtract(beta, diff)
-            self.a_breaks = a_breaks
-            self.b_breaks = b_breaks
-            #print(f"{a_breaks = }, \n {self.a_breaks = }")
         
         if not without_anchors:
             # Gather the respective anchors for this GainDomain
