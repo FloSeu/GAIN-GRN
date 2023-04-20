@@ -361,6 +361,7 @@ def find_anchor_matches(file, anchor_dict,  isTarget=False, return_unmatched=Fal
         start, end = min(parsing_dict.keys()), max(parsing_dict.keys())
     except:
         print("NOT MATCHED:", parsing_dict, file)
+        return {}
     #start, end = min(parsing_dict.keys()), max(parsing_dict.keys())
     for anchor_name, anchor_res in anchor_dict.items():
         # If the anchor lies outside the aligned segments, pass empty match (None, None)
@@ -938,24 +939,24 @@ def assign_indexing(gain_obj, file_prefix: str, gain_pdb: str, template_dir: str
         print(f"[DEBUG] assign_indexing: {gain_obj.start = }\n\t{gain_obj.end = }\n\t{gain_obj.subdomain_boundary = }\n\t{gain_pdb = }")
     # Arbitrarily defined data for templates. Receptor type -> template ID
     type_2_sda_template = {
-                    'A1':'A', 'A2':'A', 'A3':'A', 
-                    'B1':'A', 'B2':'A', 'B3':'A',
-                    'C1':'C', 'C2':'C', 'C3':'C',
-                    'D1':'D','D2':'G7',
+                    'A1':'A',  'A2':'A',  'A3':'A', 
+                    'B1':'A',  'B2':'A',  'B3':'A',
+                    'C1':'C',  'C2':'C',  'C3':'C',
+                    'D1':'D',  'D2':'G7',
                     'E1':'E1', 'E2':'E1', 'E3':'E1', 'E4':'E1', 'E5':'E5', 'E' :'E1',
-                    'F1':'F5','F2':'F4', 'F3':'F5', 'F4':'F4', 'F5':'F5', 'F' :'F5',
+                    'F1':'F5', 'F2':'F4', 'F3':'F5', 'F4':'F4', 'F5':'F5', 'F' :'F5',
                     'G1':'G7', 'G2':'G7', 'G3':'G7', 'G4':'G7', 'G5':'G7', 'G6':'G7', 'G7':'G7',
-                    'L1':'L', 'L2':'L', 'L3':'L', 'L4':'L4',
+                    'L1':'L',  'L2':'L',  'L3':'L',  'L4':'L4',
                     'V1':'V'
                     }
     type_2_sdb_template = {
                     'A1':'E5b', 'A2':'E5b', 'A3':'E5b', 
                     'B1':'E5b', 'B2':'E5b', 'B3':'E5b',
                     'C1':'E5b', 'C2':'E5b', 'C3':'E5b',
-                    'D1':'E5b','D2':'E5b',
+                    'D1':'E5b', 'D2':'E5b',
                     'E1':'E5b', 'E2':'E5b', 'E3':'E5b', 'E4':'E5b', 'E5':'E5b', 'E' :'E5b',
-                    'F1':'E5b','F2':'E5b', 'F3':'E5b', 'F4':'E5b', 'F5':'E5b', 'F' :'E5b',
-                    'G1':'G5b', 'G2':'E5b', 'G3':'G5b', 'G4':'E5b', 'G5':'G5b', 'G6':'E5b', 'E5b':'E5b',
+                    'F1':'E5b', 'F2':'E5b', 'F3':'E5b', 'F4':'E5b', 'F5':'E5b', 'F' :'E5b',
+                    'G1':'G5b', 'G2':'E5b', 'G3':'G5b', 'G4':'E5b', 'G5':'G5b', 'G6':'E5b', 'G7':'E5b',
                     'L1':'E5b', 'L2':'E5b', 'L3':'E5b', 'L4':'E5b',
                     'V1':'E5b'
                     }
@@ -978,10 +979,10 @@ def assign_indexing(gain_obj, file_prefix: str, gain_pdb: str, template_dir: str
                     'G5b':	{'S1': 65, 'S2':74,  'S3':88 , 'S4':105 ,'S5':124,			 'S7':149 ,'S8':167 ,'S9':183 ,'S10':198 ,'S11':203 ,'S12':215 ,'S13':226}
                   }
     # Anchor priority to finally define override
-    anchor_priority  =  { 
-                        "H1" :60, "H2" :70, "H3" :80, "H4" :90, "H5" :80, "H6" :100,
-                        "S1" :70, "S2" :80, "S3" :90, "S4" :80, "S5" :85, "S6" :50, "S7" :90, "S8" :95, "S9" :90, "S10":80, "S11":98, "S12":99, "S13":100
-                        }
+    # anchor_priority  =  { 
+    #                     "H1" :60, "H2" :70, "H3" :80, "H4" :90, "H5" :80, "H6" :100,
+    #                     "S1" :70, "S2" :80, "S3" :90, "S4" :80, "S5" :85, "S6" :50, "S7" :90, "S8" :95, "S9" :90, "S10":80, "S11":98, "S12":99, "S13":100
+    #                     }
     # evaluate the template dir and find sda and sdb templates:
     sda_templates = {}
     sdb_templates = {}
@@ -1001,13 +1002,16 @@ def assign_indexing(gain_obj, file_prefix: str, gain_pdb: str, template_dir: str
 
     # Get the agpcr-type and the corresponding templates to be matched.
     agpcr_type = get_agpcr_type(gain_obj.name)
+    if debug: print("[DEBUG] assign_indexing: agpcr_type =")
     # If the type is unknown, get the best matching templates by performing RMSD after alignment via GESAMT
     if agpcr_type not in type_2_sda_template.keys():
         if agpcr_type[0] not in type_2_sda_template.keys():
-
             best_a, best_b = find_best_templates(gain_obj, gain_pdb, sda_templates, sdb_templates, debug=debug)
             if debug:
                 print(f"[DEBUG] assign_indexing: running template search with unknown receptor.\n{best_a = } {best_b = }")
+        else:
+            best_a = type_2_sda_template[agpcr_type[0]]
+            best_b = type_2_sdb_template[agpcr_type[0]]
     else:
         best_a = type_2_sda_template[agpcr_type] # This is the best template ID, i.e. "A"
         best_b = type_2_sdb_template[agpcr_type] #              -"-                   "E5b"
@@ -1181,6 +1185,11 @@ def create_compact_indexing(gain_obj, subdomain:str, actual_anchors:dict, thresh
     named_residue_dir = {}
     unindexed = []
 
+    # Catch an empty match; return all empty
+    if not actual_anchors:
+        print("[WARNING] create_compact_indexing. Umatched subdomain. Returning all empty entries.")
+        return {}, {}, {}, []
+
     # Invert the actual anchors dict to match the GAIN residue to the named anchor
     res2anchor = {v[0]:k for k,v in actual_anchors.items()} # v is a tuple  (residue, distance_to_template_center_residue)
     if debug: print(f"[DEBUG] create_compact_indexing: {res2anchor = }")
@@ -1243,7 +1252,7 @@ def create_compact_indexing(gain_obj, subdomain:str, actual_anchors:dict, thresh
             coiled_residues = []
             outlier_residues = []
             for i in range(first_res+1, last_res): # The start and end of a segment are never breaks.
-                if gain_obj.sse_sequence[i] ==  "C":
+                if gain_obj.sse_sequence[i] ==  "C" or gain_obj.sse_sequence[i] == "T":
                     coiled_residues.append(i)
                 if gain_obj.sse_sequence[i] == 'h':
                     outlier_residues.append(i)
