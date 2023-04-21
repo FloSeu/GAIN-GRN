@@ -983,10 +983,10 @@ def assign_indexing(gain_obj, file_prefix: str, gain_pdb: str, template_dir: str
                     'G5b':  {"GPS-2":219, "GPS-1":220, "GPS+1":221}
                   }
     # Anchor priority to finally define override
-    # anchor_priority  =  { 
-    #                     "H1" :60, "H2" :70, "H3" :80, "H4" :90, "H5" :80, "H6" :100,
-    #                     "S1" :70, "S2" :80, "S3" :90, "S4" :80, "S5" :85, "S6" :50, "S7" :90, "S8" :95, "S9" :90, "S10":80, "S11":98, "S12":99, "S13":100
-    #                     }
+    anchor_priority  =  { 
+                        "H1" :60, "H2" :70, "H3" :80, "H4" :90, "H5" :80, "H6" :100,
+                        "S1" :70, "S2" :80, "S3" :90, "S4" :80, "S5" :85, "S6" :50, "S7" :90, "S8" :95, "S9" :90, "S10":80, "S11":98, "S12":99, "S13":100
+                        }
     # evaluate the template dir and find sda and sdb templates:
     sda_templates = {}
     sdb_templates = {}
@@ -1059,9 +1059,11 @@ def assign_indexing(gain_obj, file_prefix: str, gain_pdb: str, template_dir: str
     if debug:
         print(f"[DEBUG] assign_indexing: The matched anchors of the target GAIN domain are:{target_a_centers = }\n\t{target_b_centers = }")
 
-    a_out = list(create_compact_indexing(gain_obj, 'a', target_a_centers, threshold=3, padding=1, hard_cut=hard_cut, debug=debug) ) # [dict, dict, dict, list]
-    b_out = list(create_compact_indexing(gain_obj, 'b', target_b_centers, threshold=1, padding=1, hard_cut=hard_cut, debug=debug) )
+    a_out = list(create_compact_indexing(gain_obj, 'a', target_a_centers, threshold=3, padding=1, hard_cut=hard_cut, prio=anchor_priority, debug=debug) ) # [dict, dict, dict, list]
+    b_out = list(create_compact_indexing(gain_obj, 'b', target_b_centers, threshold=1, padding=1, hard_cut=hard_cut, prio=anchor_priority, debug=debug) )
+    highest_split = max [a_out[4], b_out[4]]
 
+    # Patch the GPS into the output of the indexing methods.
     if patch_gps:
         b_gps = sdb_gps_res[best_b]
         gps_matches = find_anchor_matches(f'{file_prefix}_sdb.out', b_gps, isTarget=False, debug=debug)
@@ -1076,12 +1078,10 @@ def assign_indexing(gain_obj, file_prefix: str, gain_pdb: str, template_dir: str
                 b_out[2][resid] = label
         else:
             print("[WARNING] assing_indexing: No GPS matches have been detected. It will not be patched.")
-    #      elements+intervals          element_centers             residue_labels              unindexed_elements        
-    return { **a_out[0], **b_out[0] }, { **a_out[1], **b_out[1]} , { **a_out[2], **b_out[2] }, a_out[3] + b_out[3]
+    #      elements+intervals          element_centers             residue_labels              unindexed_elements   highest used split mode    
+    return { **a_out[0], **b_out[0] }, { **a_out[1], **b_out[1]} , { **a_out[2], **b_out[2] }, a_out[3] + b_out[3], highest_split
 
-    # merge outputs of both functions and return them in a combined way.
-
-def create_compact_indexing(gain_obj, subdomain:str, actual_anchors:dict, threshold=3, padding=1, hard_cut=None, debug=False):
+def create_compact_indexing(gain_obj, subdomain:str, actual_anchors:dict, threshold=3, padding=1, hard_cut=None, prio=None, debug=False):
     ''' 
     Makes the indexing list, this is NOT automatically generated, since we do not need this for the base dataset
     Prints out the final list and writes it to file if outdir is specified
@@ -1118,6 +1118,7 @@ def create_compact_indexing(gain_obj, subdomain:str, actual_anchors:dict, thresh
     def split_segments(sse:list, found_anchors:list, res2anchor:dict, coiled_residues:list, outlier_residues:list, hard_cut=None, debug=debug):
         # Split a segment with multiple occurring anchors into its respective segments.
         # Use coiled_residues first, then outlier_residues with lower priority
+        # Returns a value matching the line of splitting used (0 = best, 3 = worst).
         if debug: 
             print(f"[DEBUG] split_segments: called with \n\t{hard_cut = }\n\t{found_anchors = }\n\telements: {[res2anchor[i] for i in found_anchors]}")
         n_segments = len(found_anchors)
@@ -1139,11 +1140,15 @@ def create_compact_indexing(gain_obj, subdomain:str, actual_anchors:dict, thresh
             # By convention, split the along the most N-terminal occurence of a break residue.
             # Here is the logic to detect what is used for breaking up the segment. The order of checks:
             # First line of splitting: Check of coiled or outlier residues present in the segment.
+            split_mode = 1
             if len(coiled_breakers) > 0:
                 breakers = coiled_breakers
             elif len(outlier_breakers) > 0:
+                split_mode = 2
                 breakers = outlier_breakers
+
             else:
+                split_mode = 3
                 # Second line of splitting: Check if there is a proline or glycine. If so, use this as a breaker.
                 segment_sequence = gain_obj.sequence[sse[0]-gain_obj.start:sse[1]-gain_obj.start]
                 print(f"[DEBUG] split_segments : Last resort with \n\t{segment_sequence = }\n\t{sse = }")
@@ -1158,16 +1163,26 @@ def create_compact_indexing(gain_obj, subdomain:str, actual_anchors:dict, thresh
                         print(f"[DEBUG] Glycine {breakers = }")
                     print(f"[WARNING] No breakers, but Glycine detected in the target segment. Using this for splitting:\n\t{segment_sequence = }\n\t{sse[0]}-{sse[1]} | G@{breakers[0]}")
                 else:
-                    # Last line of splitting: Check if there is a hard cut provided in hard_cut for one of the anchors (S6?). If so, break it after n residues,
+                    split_mode = 4
+                    # Third line of splitting: Check if there is a hard cut provided in hard_cut for one of the anchors (S6?). If so, break it after n residues,
                     # keep all residues in the segment (the breaker is added to the C-terminal segment)
                     if hard_cut is not None and res2anchor[n_anchor] in hard_cut.keys():
                         hard_cut_flag = True
                         breakers = [n_anchor+hard_cut[res2anchor[n_anchor]]]
                         print(f"[WARNING] HARD CUT BREAKER @ {breakers[0]} between {res2anchor[n_anchor]} | {res2anchor[c_anchor]}")
                     else:
-                        print(f"[ERROR]: No breakers and no Proline detected between {n_anchor = }:{res2anchor[n_anchor]} {c_anchor = }:{res2anchor[c_anchor]}\n{segment_sequence = }")
-                        raise IndexError(f"No Breaker detected in multi-anchor ordered segment: \n\t{sse[0]}-{sse[1]}\n\t{gain_obj.name} Check this.")
-            
+                        split_mode = 5
+                        # Last line of splitting: prio
+                        if debug:
+                            print("[DEBUG]: lst line of splitting invoked. Using anchor priorities to override ambiuguity")
+                        if prio is None:
+                            print(f"[ERROR]: No breakers and no Proline detected between {n_anchor = }:{res2anchor[n_anchor]} {c_anchor = }:{res2anchor[c_anchor]}\n{segment_sequence = }")
+                            raise IndexError(f"No Breaker detected in multi-anchor ordered segment: \n\t{sse[0]}-{sse[1]}\n\t{gain_obj.name} Check this.")
+                        if prio is not None:
+                            priorities = [prio[a] for a in found_anchors]
+                            best_anchor = found_anchors[max(priorities).index]
+                            return {best_anchor:[sse]}, split_mode
+                                
             c_boundaries[n_anchor] = breakers[0]-1
             n_boundaries[c_anchor] = breakers[0]+1
             # Include the hard cut residue in the C-terminal element (decrement n-terminal boundary by 1)
@@ -1175,7 +1190,7 @@ def create_compact_indexing(gain_obj, subdomain:str, actual_anchors:dict, thresh
                 n_boundaries[c_anchor] -= 1
         # Merge the segments and return them
         segments = {a:[n_boundaries[a], c_boundaries[a]] for a in sorted_anchors}
-        return segments
+        return segments, split_mode
 
     def create_name_list(sse, ref_res, sse_name):
             ''' Creates a indexing list for an identified SSE with reference index as X.50,
@@ -1202,7 +1217,7 @@ def create_compact_indexing(gain_obj, subdomain:str, actual_anchors:dict, thresh
     indexing_centers = {}
     named_residue_dir = {}
     unindexed = []
-
+    split_mode = 0
     # Catch an empty match; return all empty
     if not actual_anchors:
         print("[WARNING] create_compact_indexing. Umatched subdomain. Returning all empty entries.")
@@ -1277,14 +1292,13 @@ def create_compact_indexing(gain_obj, subdomain:str, actual_anchors:dict, thresh
             
             if debug:
                 print(f"[DEBUG] create_compact_indexing :\n\t{coiled_residues  = }\n\t{outlier_residues = }")
-                
-            split_segs = split_segments(sse=[first_res, last_res], 
-                                            found_anchors=found_anchors,
-                                            res2anchor=res2anchor,
-                                            coiled_residues=coiled_residues, 
-                                            outlier_residues=outlier_residues, 
-                                            hard_cut=hard_cut, 
-                                            debug=debug)
+            split_segs, split_mode = split_segments(sse=[first_res, last_res], 
+                                                    found_anchors=found_anchors,
+                                                    res2anchor=res2anchor,
+                                                    coiled_residues=coiled_residues, 
+                                                    outlier_residues=outlier_residues, 
+                                                    hard_cut=hard_cut, 
+                                                    debug=debug)
             for anchor_res, segment in split_segs.items():
                 name_list, cast_values = create_name_list(segment, anchor_res, res2anchor[anchor_res])
                 # cast them also?
@@ -1302,4 +1316,4 @@ def create_compact_indexing(gain_obj, subdomain:str, actual_anchors:dict, thresh
         # Also cast this to the general indexing dictionary
         named_residue_dir[labels[i]] = gain_obj.GPS.residue_numbers[i]"""
            
-    return indexing_dir, indexing_centers, named_residue_dir, unindexed
+    return indexing_dir, indexing_centers, named_residue_dir, unindexed, split_mode
