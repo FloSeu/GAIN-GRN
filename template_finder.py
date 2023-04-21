@@ -1078,8 +1078,8 @@ def assign_indexing(gain_obj, file_prefix: str, gain_pdb: str, template_dir: str
                 b_out[2][label] = v[0]
         else:
             print("[WARNING] assing_indexing: No GPS matches have been detected. It will not be patched.")
-            
-    params = {"sda_template":best_a, "sdb_template":best_b, "split_mode":highest_split}
+
+    params = {"sda_template":best_a, "sdb_template":best_b, "split_mode":highest_split, "receptor":agpcr_type}
     #      elements+intervals          element_centers             residue_labels              unindexed_elements   highest used split mode    
     return { **a_out[0], **b_out[0] }, { **a_out[1], **b_out[1]} , { **a_out[2], **b_out[2] }, a_out[3] + b_out[3], params
 
