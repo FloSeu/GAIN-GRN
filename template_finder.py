@@ -1061,7 +1061,7 @@ def assign_indexing(gain_obj, file_prefix: str, gain_pdb: str, template_dir: str
 
     a_out = list(create_compact_indexing(gain_obj, 'a', target_a_centers, threshold=3, padding=1, hard_cut=hard_cut, prio=anchor_priority, debug=debug) ) # [dict, dict, dict, list]
     b_out = list(create_compact_indexing(gain_obj, 'b', target_b_centers, threshold=1, padding=1, hard_cut=hard_cut, prio=anchor_priority, debug=debug) )
-    highest_split = max [a_out[4], b_out[4]]
+    highest_split = max([a_out[4], b_out[4]])
 
     # Patch the GPS into the output of the indexing methods.
     if patch_gps:
