@@ -934,7 +934,7 @@ def get_agpcr_type(name):
             return output(match)
     return 'X'
 
-def assign_indexing(gain_obj, file_prefix: str, gain_pdb: str, template_dir: str, hard_cut=None, debug=False, create_pdb=False):
+def assign_indexing(gain_obj, file_prefix: str, gain_pdb: str, template_dir: str, hard_cut=None, debug=False, create_pdb=False, patch_gps=False):
     if debug:
         print(f"[DEBUG] assign_indexing: {gain_obj.start = }\n\t{gain_obj.end = }\n\t{gain_obj.subdomain_boundary = }\n\t{gain_pdb = }")
     # Arbitrarily defined data for templates. Receptor type -> template ID
@@ -977,6 +977,10 @@ def assign_indexing(gain_obj, file_prefix: str, gain_pdb: str, template_dir: str
     sdb_centers = {
                     'E5b':	{'S1':324, 'S2':333, 'S3':350, 'S4':357, 'S5':375, 'S6':407, 'S7':414, 'S8':431, 'S9':450, 'S10':459, 'S11':464, 'S12':476 ,'S13':487},
                     'G5b':	{'S1': 65, 'S2':74,  'S3':88 , 'S4':105 ,'S5':124,			 'S7':149 ,'S8':167 ,'S9':183 ,'S10':198 ,'S11':203 ,'S12':215 ,'S13':226}
+                  }
+    sdb_gps_res = { 
+                    'E5b':  {"GPS-2":480, "GPS-1":481, "GPS+1":482},
+                    'G5b':  {"GPS-2":219, "GPS-1":220, "GPS+1":221}
                   }
     # Anchor priority to finally define override
     # anchor_priority  =  { 
@@ -1058,6 +1062,20 @@ def assign_indexing(gain_obj, file_prefix: str, gain_pdb: str, template_dir: str
     a_out = list(create_compact_indexing(gain_obj, 'a', target_a_centers, threshold=3, padding=1, hard_cut=hard_cut, debug=debug) ) # [dict, dict, dict, list]
     b_out = list(create_compact_indexing(gain_obj, 'b', target_b_centers, threshold=1, padding=1, hard_cut=hard_cut, debug=debug) )
 
+    if patch_gps:
+        b_gps = sdb_gps_res[best_b]
+        gps_matches = find_anchor_matches(f'{file_prefix}_sdb.out', b_gps, isTarget=False, debug=debug)
+        gps_resids = sorted([v[0] for v in gps_matches.values() if v[0] is not None])
+        if debug:
+            print(f"[DEBUG] assign_indexing: Attempting Patching GPS\n\t{b_gps = }\n\t{gps_matches = }\n\t{gps_resids = }")
+        # Append the GPS into the subdomain B output
+        if gps_resids:
+            b_out[0]["GPS"] = [gps_resids[0], gps_resids[-1]]
+            b_out[1]["GPS"] = gps_matches["GPS-1"]
+            for label, resid in gps_matches.keys():
+                b_out[2][resid] = label
+        else:
+            print("[WARNING] assing_indexing: No GPS matches have been detected. It will not be patched.")
     #      elements+intervals          element_centers             residue_labels              unindexed_elements        
     return { **a_out[0], **b_out[0] }, { **a_out[1], **b_out[1]} , { **a_out[2], **b_out[2] }, a_out[3] + b_out[3]
 
