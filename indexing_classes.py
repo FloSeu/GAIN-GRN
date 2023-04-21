@@ -5,7 +5,7 @@ import template_finder as tf
 import glob
 
 class StAlIndexing:
-    def __init__(self, aGainCollection, prefix:str, pdb_folder='../all_pdbs',  fasta_offsets=None) :
+    def __init__(self, aGainCollection, prefix:str, pdb_dir:str,  template_dir:str, fasta_offsets=None):
 
         def find_pdb(name, pdb_folder):
             identifier = name.split("-")[0]
@@ -18,11 +18,10 @@ class StAlIndexing:
         center_dirs = np.empty([length], dtype=object)
         offsets = np.zeros([length], dtype=int)
         total_keys = []
-        center_keys = []
         total_unindexed = []
-        receptor_types = np.empty([length])
-        a_templates = np.empty([length])
-        b_templates = np.empty([length])
+        receptor_types = np.empty([length], dtype='<U2')
+        a_templates = np.empty([length], dtype='<U4')
+        b_templates = np.empty([length], dtype='<U2')
 
         if fasta_offsets is None:
             self.fasta_offsets = np.zeros([length])
@@ -35,18 +34,18 @@ class StAlIndexing:
             self.fasta_offsets = np.array(corrected_offsets, dtype=int)
 
         total_keys = []
-        center_keys = []
         total_unindexed = []
 
         for gain_index, gain in enumerate(aGainCollection.collection):
             _, indexing_centers, indexing_dir, unindexed, params = tf.assign_indexing(gain, 
                                                                                        file_prefix=f"{prefix}_{gain_index}", 
-                                                                                       gain_pdb=find_pdb(gain.name, pdb_folder), 
-                                                                                       template_dir='../r2_template_pdbs/', 
+                                                                                       gain_pdb=find_pdb(gain.name, pdb_dir), 
+                                                                                       template_dir=template_dir, 
                                                                                        debug=False, 
                                                                                        create_pdb=False,
                                                                                        hard_cut={"S2":7,"S6":3,"H5":3},
                                                                                        patch_gps=True)
+
             for key in indexing_dir.keys():
                 if key not in total_keys:
                     total_keys.append(key)      
