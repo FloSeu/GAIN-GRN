@@ -1074,12 +1074,14 @@ def assign_indexing(gain_obj, file_prefix: str, gain_pdb: str, template_dir: str
         if gps_resids:
             b_out[0]["GPS"] = [gps_resids[0], gps_resids[-1]]
             b_out[1]["GPS"] = gps_matches["GPS-1"]
-            for label, resid in gps_matches.keys():
-                b_out[2][resid] = label
+            for label, v in gps_matches.items():
+                b_out[2][label] = v[0]
         else:
             print("[WARNING] assing_indexing: No GPS matches have been detected. It will not be patched.")
+            
+    params = {"sda_template":best_a, "sdb_template":best_b, "split_mode":highest_split}
     #      elements+intervals          element_centers             residue_labels              unindexed_elements   highest used split mode    
-    return { **a_out[0], **b_out[0] }, { **a_out[1], **b_out[1]} , { **a_out[2], **b_out[2] }, a_out[3] + b_out[3], highest_split
+    return { **a_out[0], **b_out[0] }, { **a_out[1], **b_out[1]} , { **a_out[2], **b_out[2] }, a_out[3] + b_out[3], params
 
 def create_compact_indexing(gain_obj, subdomain:str, actual_anchors:dict, threshold=3, padding=1, hard_cut=None, prio=None, debug=False):
     ''' 
@@ -1306,14 +1308,5 @@ def create_compact_indexing(gain_obj, subdomain:str, actual_anchors:dict, thresh
                  # Also write split stuff to the new dictionary
                 for entryidx, entry in enumerate(name_list): 
                     named_residue_dir[entry] = entryidx+segment[0]
-
-    # Patch the GPS into the nom_list
-    """        labels = ["GPS-2","GPS-1","GPS+1"]
-    for i, residue in enumerate(gain_obj.GPS.residue_numbers[:3]):
-        #print(residue)
-        nom_list[residue] = labels[i]
-        indexing_dir["GPS"] = gain_obj.GPS.residue_numbers
-        # Also cast this to the general indexing dictionary
-        named_residue_dir[labels[i]] = gain_obj.GPS.residue_numbers[i]"""
            
     return indexing_dir, indexing_centers, named_residue_dir, unindexed, split_mode
