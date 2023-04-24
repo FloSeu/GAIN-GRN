@@ -934,7 +934,7 @@ def get_agpcr_type(name):
             return output(match)
     return 'X'
 
-def assign_indexing(gain_obj, file_prefix: str, gain_pdb: str, template_dir: str, hard_cut=None, debug=False, create_pdb=False, patch_gps=False):
+def assign_indexing(gain_obj:object, file_prefix: str, gain_pdb: str, template_dir: str, hard_cut=None, debug=False, create_pdb=False, patch_gps=False):
     if debug:
         print(f"[DEBUG] assign_indexing: {gain_obj.start = }\n\t{gain_obj.end = }\n\t{gain_obj.subdomain_boundary = }\n\t{gain_pdb = }")
     # Arbitrarily defined data for templates. Receptor type -> template ID
@@ -1083,6 +1083,18 @@ def assign_indexing(gain_obj, file_prefix: str, gain_pdb: str, template_dir: str
     #      elements+intervals          element_centers             residue_labels              unindexed_elements   highest used split mode    
     return { **a_out[0], **b_out[0] }, { **a_out[1], **b_out[1]} , { **a_out[2], **b_out[2] }, a_out[3] + b_out[3], params
 
+def mp_assign_indexing(mp_args:list):
+    # wrapper function deciphering the list of args into the function call, for mp we need the args as an iterable.
+    intervals, indexing_centers, indexing_dir, unindexed, params = assign_indexing(gain_obj=mp_args[0], 
+                                                                            file_prefix=mp_args[1], 
+                                                                            gain_pdb=mp_args[2], 
+                                                                            template_dir=mp_args[3], 
+                                                                            debug=mp_args[4], 
+                                                                            create_pdb=mp_args[5],
+                                                                            hard_cut=mp_args[6],
+                                                                            patch_gps=mp_args[7])
+    return [intervals, indexing_centers, indexing_dir, unindexed, params, mp_args[8]]
+
 def create_compact_indexing(gain_obj, subdomain:str, actual_anchors:dict, threshold=3, padding=1, hard_cut=None, prio=None, debug=False):
     ''' 
     Makes the indexing list, this is NOT automatically generated, since we do not need this for the base dataset
@@ -1170,7 +1182,7 @@ def create_compact_indexing(gain_obj, subdomain:str, actual_anchors:dict, thresh
                     # keep all residues in the segment (the breaker is added to the C-terminal segment)
                     if hard_cut is not None and res2anchor[n_anchor] in hard_cut.keys():
                         hard_cut_flag = True
-                        breakers = [n_anchor+hard_cut[res2anchor[n_anchor]]]
+                        breakers = [n_anchor+hard_cut[res2anchor[n_anchor]] ]
                         print(f"[WARNING] HARD CUT BREAKER @ {breakers[0]} between {res2anchor[n_anchor]} | {res2anchor[c_anchor]}")
                     else:
                         split_mode = 5
@@ -1181,8 +1193,8 @@ def create_compact_indexing(gain_obj, subdomain:str, actual_anchors:dict, thresh
                             print(f"[ERROR]: No breakers and no Proline detected between {n_anchor = }:{res2anchor[n_anchor]} {c_anchor = }:{res2anchor[c_anchor]}\n{segment_sequence = }")
                             raise IndexError(f"No Breaker detected in multi-anchor ordered segment: \n\t{sse[0]}-{sse[1]}\n\t{gain_obj.name} Check this.")
                         if prio is not None:
-                            priorities = [prio[a] for a in found_anchors]
-                            best_anchor = found_anchors[max(priorities).index]
+                            priorities = [ prio[res2anchor[a]] for a in found_anchors ]
+                            best_anchor = found_anchors[np.argmax(priorities)]
                             return {best_anchor:[sse]}, split_mode
                                 
             c_boundaries[n_anchor] = breakers[0]-1
@@ -1223,7 +1235,7 @@ def create_compact_indexing(gain_obj, subdomain:str, actual_anchors:dict, thresh
     # Catch an empty match; return all empty
     if not actual_anchors:
         print("[WARNING] create_compact_indexing. Umatched subdomain. Returning all empty entries.")
-        return {}, {}, {}, []
+        return {}, {}, {}, [], 0
 
     # Invert the actual anchors dict to match the GAIN residue to the named anchor
     res2anchor = {v[0]:k for k,v in actual_anchors.items()} # v is a tuple  (residue, distance_to_template_center_residue)
