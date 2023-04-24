@@ -3,80 +3,101 @@
 import numpy as np
 import template_finder as tf
 import glob
+import multiprocessing as mp
 
 class StAlIndexing:
-    def __init__(self, aGainCollection, prefix:str, pdb_dir:str,  template_dir:str, fasta_offsets=None):
+    def __init__(self, list_of_gain_obj, prefix:str, pdb_dir:str,  template_dir:str, n_threads=1, fasta_offsets=None, debug=False):
 
         def find_pdb(name, pdb_folder):
             identifier = name.split("-")[0]
             target_pdb = glob.glob(f"{pdb_folder}/*{identifier}*.pdb")[0]
             return target_pdb
 
-        length = len(aGainCollection.collection)
-        names = np.empty([length], dtype=object)
-        indexing_dirs = np.empty([length], dtype=object)
-        center_dirs = np.empty([length], dtype=object)
-        offsets = np.zeros([length], dtype=int)
+        length = len(list_of_gain_obj)
+        #names = np.empty([length], dtype=object)
+        #indexing_dirs = np.empty([length], dtype=object)
+        #center_dirs = np.empty([length], dtype=object)
+        #offsets = np.zeros([length], dtype=int)
         total_keys = []
-        total_unindexed = []
-        receptor_types = np.empty([length], dtype='<U2')
-        a_templates = np.empty([length], dtype='<U4')
-        b_templates = np.empty([length], dtype='<U2')
+        #total_unindexed = []
+        #receptor_types = np.empty([length], dtype='<U2')
+        #a_templates = np.empty([length], dtype='<U4')
+        #b_templates = np.empty([length], dtype='<U2')
 
         if fasta_offsets is None:
             self.fasta_offsets = np.zeros([length])
         if fasta_offsets is not None: 
-            corrected_offsets = []
-            for i in range(length):
             # The existing FASTA offsets do not account for the residue starting not at 0,
             # Therefore the value of the starting res (gain.start) needs to be subtracted.
-                corrected_offsets.append(fasta_offsets[i]-aGainCollection.collection[i].start)
+            corrected_offsets = [fasta_offsets[i]-list_of_gain_obj[i].start for i in range(length)]
             self.fasta_offsets = np.array(corrected_offsets, dtype=int)
 
-        total_keys = []
-        total_unindexed = []
+        all_centers = np.empty([length], dtype=dict) # <-- center_dirs
+        all_indexing_dir = np.empty([length], dtype=dict) # <-- indexing_dirs
+        all_unindexed = np.empty([length], dtype=list) # <-- total_unindexed
+        all_params = np.empty([length], dtype=dict) # <-- a_templates, b_templates, receptor_types
+        all_intervals = np.empty([length], dtype=dict)
 
-        for gain_index, gain in enumerate(aGainCollection.collection):
-            _, indexing_centers, indexing_dir, unindexed, params = tf.assign_indexing(gain, 
-                                                                                       file_prefix=f"{prefix}_{gain_index}", 
-                                                                                       gain_pdb=find_pdb(gain.name, pdb_dir), 
-                                                                                       template_dir=template_dir, 
-                                                                                       debug=False, 
-                                                                                       create_pdb=False,
-                                                                                       hard_cut={"S2":7,"S6":3,"H5":3},
-                                                                                       patch_gps=True)
+        if n_threads > 1 :
+            print(f"StAlIndexing: Assigning indexing via multiprocessing with {n_threads} threads.")
+            pool = mp.Pool(n_threads)
+            # Construct an iterable with the arguments for the wrapper function mp_assign_indexing
+            mp_arglist = [ 
+                            [gain, f"{prefix}_{gain_idx}", find_pdb(gain.name, pdb_dir), template_dir, debug, False, {"S2":7,"S6":3,"H5":3}, True, gain_idx] 
+                            for gain_idx, gain in enumerate(list_of_gain_obj)
+                         ]
+            
+            for result in pool.map(tf.mp_assign_indexing, mp_arglist):
+                # this is each instance of the above function return with the result[4] being the index
+                all_intervals[result[5]] = result[0]
+                all_centers[result[5]] = result[1]
+                all_indexing_dir[result[5]] = result[2]
+                all_unindexed[result[5]] = result[3]
+                all_params[result[5]] = result[4]
+            print("Done with multiprocessing.")
+            pool.close()
 
+        if n_threads == 1:
+            print(f"StAlIndexing: Assigning indexing via single process.")
+            for gain_index, gain in enumerate(list_of_gain_obj):
+                intervals, indexing_centers, indexing_dir, unindexed, params = tf.assign_indexing(gain, 
+                                                                                        file_prefix=f"{prefix}_{gain_index}", 
+                                                                                        gain_pdb=find_pdb(gain.name, pdb_dir), 
+                                                                                        template_dir=template_dir, 
+                                                                                        debug=debug, 
+                                                                                        create_pdb=False,
+                                                                                        hard_cut={"S2":7,"S6":3,"H5":3},
+                                                                                        patch_gps=True)
+
+                all_centers[gain_index] = indexing_centers
+                all_indexing_dir[gain_index] = indexing_dir
+                all_unindexed[gain_index] = unindexed
+                all_params[gain_index] = params
+                all_intervals[gain_index] = intervals
+
+        for indexing_dir in all_indexing_dir:
             for key in indexing_dir.keys():
                 if key not in total_keys:
                     total_keys.append(key)      
-                            
-            if unindexed != []:
-                for item in unindexed : 
-                    total_unindexed.append(item)
 
-            indexing_dirs[gain_index] = indexing_dir
-            center_dirs[gain_index] = indexing_centers
-
-            names[gain_index] = gain.name
-            offsets[gain_index] = gain.start
             #params = {"sda_template":best_a, "sdb_template":best_b, "split_mode":highest_split}
-            a_templates[gain_index] = params["sda_template"]
-            b_templates[gain_index] = params["sdb_template"]
-            receptor_types[gain_index] = params["receptor"]
 
-        self.indexing_dirs = indexing_dirs
-        self.center_dirs = center_dirs
-        self.names = names
+        # Assign data structures
+        self.indexing_dirs = all_indexing_dir
+        self.center_dirs = all_centers
+        self.names = [gain.name for gain in list_of_gain_obj]
         self.length = length
-        self.offsets = offsets
-        self.accessions = [gain.name.split("-")[0].split("_")[0] for gain in aGainCollection.collection]
-        self.sequences = ["".join(gain.sequence) for gain in aGainCollection.collection]
+        self.intervals = all_intervals
+        self.offsets = [gain.start for gain in list_of_gain_obj]
+        self.accessions = [gain.name.split("-")[0].split("_")[0] for gain in list_of_gain_obj]
+        self.sequences = ["".join(gain.sequence) for gain in list_of_gain_obj]
         self.total_keys = sorted(total_keys)
         self.center_keys = [f"H{i}.50" for i in range(1,7)]+[f"S{i}.50" for i in range(1,14)]
-        self.unindexed = total_unindexed
-        self.a_templates = a_templates
-        self.b_templates = b_templates
-        self.receptor_types = receptor_types
+        self.unindexed = all_unindexed
+        self.a_templates = [params["sda_template"] for params in all_params]
+        self.b_templates = [params["sdb_template"] for params in all_params]
+        self.receptor_types = [params["receptor"] for params in all_params]
+        self.split_modes = [params["split_mode"] for params in all_params]
 
         print("Total of keys found in the dictionaries:\n", self.total_keys, self.center_keys)
         print("First entry", self.indexing_dirs[0], self.center_dirs[0])
@@ -90,33 +111,44 @@ class StAlIndexing:
             new_header.append(f"{j[:-3]}.end")
 
         header_dict = {}
+        gpcr_header_dict = {}
+
         for idx, item in enumerate(header_list):
             header_dict[item] = idx
-        gpcr_header_dict = {}
+        
         for idx, key in enumerate(new_header):
             gpcr_header_dict[key] = idx
+
         print(gpcr_header_dict)
+
         data_matrix = np.full([self.length, len(gpcr_header_dict.keys())], fill_value='', dtype=object)
         # Go through each of the sub-dictionaries and populate the dataframe:
         for row in range(self.length):
                 # Q5T601_Q5KU15_..._Q9H615-AGRF1_HUMAN-AGRF1-Homo_sapiens.fa
                 # 0                        1           2     3
-            name_parts = self.names[row].replace(',','').split("-")
+            name_parts = self.names[row].replace('AGR', 'ADGR').replace(',','').split("-")
             data_matrix[row, gpcr_header_dict["Receptor"]] = name_parts[2]
             data_matrix[row, gpcr_header_dict["Accession"]] = name_parts[0].split("_")[0]
             offset = self.offsets[row]
             fa_offset = self.fasta_offsets[row]
 
+            # Find GPS residues.
             gps_col = {"GPS-2":2,"GPS-1":3, "GPS+1":4}
             for key in self.indexing_dirs[row].keys():
                 if "GPS" in key:
                     data_matrix[row, gps_col[key]] = [str(self.indexing_dirs[row][key])]
-                else:
-                    sse = [int(x+offset+fa_offset) for x in self.indexing_dirs[row][key]]
-                    data_matrix[row, gpcr_header_dict[f"{key}.start"]] = str(sse[0])
-                    data_matrix[row, gpcr_header_dict[f"{key}.end"]] = str(sse[1])
-
+            # Write start and end residues with offset to dataframe
+            for key in self.intervals[row].keys():
+                if key == "GPS":
+                    continue
+                #print("[DEBUG]", self.intervals[row][key], type(self.intervals[row][key]), sep="\n\t")
+                sse = [int(x+offset+fa_offset) for x in self.intervals[row][key]] # should be a list of [start, end] for each interval
+                data_matrix[row, gpcr_header_dict[f"{key}.start"]] = str(sse[0])
+                data_matrix[row, gpcr_header_dict[f"{key}.end"]] = str(sse[1])
+            # Write center residues with offset to dataframe
             for key in self.center_dirs[row].keys():
+                if key == "GPS":
+                    continue
                 data_matrix[row, gpcr_header_dict[key.replace(".50",".anchor")]] = str(self.center_dirs[row][key]+offset+fa_offset)
             
             self.data_header = ",".join(new_header)
