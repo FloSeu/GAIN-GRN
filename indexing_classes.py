@@ -56,6 +56,7 @@ class StAlIndexing:
                 all_params[result[5]] = result[4]
             print("Done with multiprocessing.")
             pool.close()
+            pool.join()
 
         if n_threads == 1:
             print(f"StAlIndexing: Assigning indexing via single process.")
@@ -78,7 +79,7 @@ class StAlIndexing:
         for indexing_dir in all_indexing_dir:
             for key in indexing_dir.keys():
                 if key not in total_keys:
-                    total_keys.append(key)      
+                    total_keys.append(key)
 
             #params = {"sda_template":best_a, "sdb_template":best_b, "split_mode":highest_split}
 
@@ -101,34 +102,47 @@ class StAlIndexing:
 
         print("Total of keys found in the dictionaries:\n", self.total_keys, self.center_keys)
         print("First entry", self.indexing_dirs[0], self.center_dirs[0])
-        
-        header_list = ["Receptor", "Accession"] + self.total_keys + self.center_keys
+    
+    def construct_data_matrix(self, unique_sse=False):
+        # the unique_sse boolean specifies if unique element identifiers should be kept (i.e. "H1.E1" instead of "H1")
+                 
         #header = "Receptor,Accession," + ",".join(self.total_keys) + ",".join(self.center_keys)
-        new_header = ["Receptor", "Accession", "GPS-2", "GPS-1", "GPS+1"]
-        for j in self.center_keys:
-            new_header.append(f"{j[:-3]}.start")
-            new_header.append(f"{j[:-3]}.anchor")
-            new_header.append(f"{j[:-3]}.end")
-
         header_dict = {}
-        gpcr_header_dict = {}
-
-        for idx, item in enumerate(header_list):
-            header_dict[item] = idx
+        header = ["Receptor", "Accession", "GPS-2", "GPS-1", "GPS+1"]
+        for j in self.center_keys:
+            header.append(f"{j[:-3]}.start")
+            header.append(f"{j[:-3]}.anchor")
+            header.append(f"{j[:-3]}.end")
         
-        for idx, key in enumerate(new_header):
-            gpcr_header_dict[key] = idx
+        if unique_sse:
+            # We find the unique entries in the intervals:
+            unique_headers = []
+            for interval_dict in self.intervals:
+                unique = [k for k in interval_dict.keys() if "." in k]
+                unique_headers = unique_headers + unique
+            individual_headers = np.unique(unique_headers)
+            print(f"[DEBUG] construct_data_matrix: Found the following unique headers:\n\t{individual_headers = }")
 
-        print(gpcr_header_dict)
+            for j in individual_headers:
+                header.append(f"{j}.start")
+                header.append(f"{j}.anchor")
+                header.append(f"{j}.end")
 
-        data_matrix = np.full([self.length, len(gpcr_header_dict.keys())], fill_value='', dtype=object)
+        for idx, key in enumerate(header):
+            header_dict[key] = idx
+        # if unique_sse is specified, find and add unique entries to the dictionary
+
+        print(header_dict)
+
+        data_matrix = np.full([self.length, len(header_dict.keys())], fill_value='', dtype=object)
         # Go through each of the sub-dictionaries and populate the dataframe:
         for row in range(self.length):
                 # Q5T601_Q5KU15_..._Q9H615-AGRF1_HUMAN-AGRF1-Homo_sapiens.fa
                 # 0                        1           2     3
             name_parts = self.names[row].replace('AGR', 'ADGR').replace(',','').split("-")
-            data_matrix[row, gpcr_header_dict["Receptor"]] = name_parts[2]
-            data_matrix[row, gpcr_header_dict["Accession"]] = name_parts[0].split("_")[0]
+
+            data_matrix[row, header_dict["Receptor"]] = name_parts[2]
+            data_matrix[row, header_dict["Accession"]] = name_parts[0].split("_")[0]
             offset = self.offsets[row]
             fa_offset = self.fasta_offsets[row]
 
@@ -136,29 +150,38 @@ class StAlIndexing:
             gps_col = {"GPS-2":2,"GPS-1":3, "GPS+1":4}
             for key in self.indexing_dirs[row].keys():
                 if "GPS" in key:
-                    data_matrix[row, gps_col[key]] = [str(self.indexing_dirs[row][key])]
+                    data_matrix[row, gps_col[key]] = str(self.indexing_dirs[row][key]) 
             # Write start and end residues with offset to dataframe
             for key in self.intervals[row].keys():
                 if key == "GPS":
                     continue
                 #print("[DEBUG]", self.intervals[row][key], type(self.intervals[row][key]), sep="\n\t")
                 sse = [int(x+offset+fa_offset) for x in self.intervals[row][key]] # should be a list of [start, end] for each interval
-                data_matrix[row, gpcr_header_dict[f"{key}.start"]] = str(sse[0])
-                data_matrix[row, gpcr_header_dict[f"{key}.end"]] = str(sse[1])
+                # A "." denotes individual elements, that means they will NOT be in the data_matrix unless $unique_sse is specified.
+                if "." in key and not unique_sse:
+                    key = key.split(".")[0] # "H1.E1" --> "H1"
+                data_matrix[row, header_dict[f"{key}.start"]] = str(sse[0])
+                data_matrix[row, header_dict[f"{key}.end"]] = str(sse[1])
             # Write center residues with offset to dataframe
+
             for key in self.center_dirs[row].keys():
                 if key == "GPS":
                     continue
-                data_matrix[row, gpcr_header_dict[key.replace(".50",".anchor")]] = str(self.center_dirs[row][key]+offset+fa_offset)
+                if "." in key and not unique_sse:
+                    data_matrix[row, header_dict[f"{key.split('.')[0]}.anchor"]] = str(self.center_dirs[row][key]+offset+fa_offset)
+                else:
+                    data_matrix[row, header_dict[key.replace(".50",".anchor")]] = str(self.center_dirs[row][key]+offset+fa_offset)
             
-            self.data_header = ",".join(new_header)
-            self.data_matrix = data_matrix
+            data_header = ",".join(header)
+            data_matrix = data_matrix
+        
+        return data_header, data_matrix
 
-    def data2csv(self, outfile):
+    def data2csv(self, data_header, data_matrix, outfile):
         with open(outfile, "w") as f:
-            f.write(self.data_header+"\n")
-            for row in range(self.length):
-                f.write(",".join(self.data_matrix[row,:])+"\n")
+            f.write(data_header+"\n")
+            for row in range(data_matrix.shape[0]):
+                f.write(",".join(data_matrix[row,:])+"\n")
         print("Completed file", outfile, ".")
 
 class GPCRDBIndexing:

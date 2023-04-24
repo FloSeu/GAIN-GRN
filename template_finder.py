@@ -1072,8 +1072,8 @@ def assign_indexing(gain_obj:object, file_prefix: str, gain_pdb: str, template_d
             print(f"[DEBUG] assign_indexing: Attempting Patching GPS\n\t{b_gps = }\n\t{gps_matches = }\n\t{gps_resids = }")
         # Append the GPS into the subdomain B output
         if gps_resids:
-            b_out[0]["GPS"] = [gps_resids[0], gps_resids[-1]]
-            b_out[1]["GPS"] = gps_matches["GPS-1"]
+            b_out[0]["GPS"] = [gps_resids[0], gps_resids[-1]] # GPS interval
+            b_out[1]["GPS"] = gps_matches["GPS-1"][0] # The residue number of the GPS-1
             for label, v in gps_matches.items():
                 b_out[2][label] = v[0]
         else:
