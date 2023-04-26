@@ -47,7 +47,7 @@ class StAlIndexing:
                             for gain_idx, gain in enumerate(list_of_gain_obj)
                          ]
             
-            for result in pool.map(tf.mp_assign_indexing, mp_arglist):
+            for result in pool.imap_unordered(tf.mp_assign_indexing, mp_arglist):
                 # this is each instance of the above function return with the result[4] being the index
                 all_intervals[result[5]] = result[0]
                 all_centers[result[5]] = result[1]
@@ -89,7 +89,7 @@ class StAlIndexing:
         self.names = [gain.name for gain in list_of_gain_obj]
         self.length = length
         self.intervals = all_intervals
-        self.offsets = [gain.start for gain in list_of_gain_obj]
+        #self.offsets = [gain.start for gain in list_of_gain_obj]
         self.accessions = [gain.name.split("-")[0].split("_")[0] for gain in list_of_gain_obj]
         self.sequences = ["".join(gain.sequence) for gain in list_of_gain_obj]
         self.total_keys = sorted(total_keys)
@@ -108,7 +108,7 @@ class StAlIndexing:
                  
         #header = "Receptor,Accession," + ",".join(self.total_keys) + ",".join(self.center_keys)
         header_dict = {}
-        header = ["Receptor", "Accession", "GPS-2", "GPS-1", "GPS+1"]
+        header = ["Accession","Name","Species","type", "GPS-2", "GPS-1", "GPS+1"]
         for j in self.center_keys:
             header.append(f"{j[:-3]}.start")
             header.append(f"{j[:-3]}.anchor")
@@ -141,22 +141,27 @@ class StAlIndexing:
                 # 0                        1           2     3
             name_parts = self.names[row].replace('AGR', 'ADGR').replace(',','').split("-")
 
-            data_matrix[row, header_dict["Receptor"]] = name_parts[2]
+            data_matrix[row, header_dict["Name"]] = "".join(name_parts[1:-1])
             data_matrix[row, header_dict["Accession"]] = name_parts[0].split("_")[0]
-            offset = self.offsets[row]
+            data_matrix[row, header_dict["Species"]] = name_parts[-1].replace(".","")
+            data_matrix[row, header_dict["type"]] = self.receptor_types[row]
+            #offset = self.offsets[row]
             fa_offset = self.fasta_offsets[row]
 
             # Find GPS residues.
-            gps_col = {"GPS-2":2,"GPS-1":3, "GPS+1":4}
+            gps_col = {"GPS-2":4,"GPS-1":5, "GPS+1":6}
             for key in self.indexing_dirs[row].keys():
                 if "GPS" in key:
-                    data_matrix[row, gps_col[key]] = str(self.indexing_dirs[row][key]) 
+                    if self.indexing_dirs[row][key] is not None:
+                        data_matrix[row, gps_col[key]] = str(self.indexing_dirs[row][key]+fa_offset)
+                    else:
+                        data_matrix[row, gps_col[key]] = " "
             # Write start and end residues with offset to dataframe
             for key in self.intervals[row].keys():
                 if key == "GPS":
                     continue
                 #print("[DEBUG]", self.intervals[row][key], type(self.intervals[row][key]), sep="\n\t")
-                sse = [int(x+offset+fa_offset) for x in self.intervals[row][key]] # should be a list of [start, end] for each interval
+                sse = [int(x+fa_offset) for x in self.intervals[row][key]] # should be a list of [start, end] for each interval
                 # A "." denotes individual elements, that means they will NOT be in the data_matrix unless $unique_sse is specified.
                 if "." in key and not unique_sse:
                     key = key.split(".")[0] # "H1.E1" --> "H1"
@@ -168,9 +173,9 @@ class StAlIndexing:
                 if key == "GPS":
                     continue
                 if "." in key and not unique_sse:
-                    data_matrix[row, header_dict[f"{key.split('.')[0]}.anchor"]] = str(self.center_dirs[row][key]+offset+fa_offset)
+                    data_matrix[row, header_dict[f"{key.split('.')[0]}.anchor"]] = str(self.center_dirs[row][key]+fa_offset)
                 else:
-                    data_matrix[row, header_dict[key.replace(".50",".anchor")]] = str(self.center_dirs[row][key]+offset+fa_offset)
+                    data_matrix[row, header_dict[key.replace(".50",".anchor")]] = str(self.center_dirs[row][key]+fa_offset)
             
             data_header = ",".join(header)
             data_matrix = data_matrix

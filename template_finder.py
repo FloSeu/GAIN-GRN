@@ -1160,7 +1160,6 @@ def create_compact_indexing(gain_obj, subdomain:str, actual_anchors:dict, thresh
             elif len(outlier_breakers) > 0:
                 split_mode = 2
                 breakers = outlier_breakers
-
             else:
                 split_mode = 3
                 # Second line of splitting: Check if there is a proline or glycine. If so, use this as a breaker.
@@ -1182,7 +1181,7 @@ def create_compact_indexing(gain_obj, subdomain:str, actual_anchors:dict, thresh
                     # keep all residues in the segment (the breaker is added to the C-terminal segment)
                     if hard_cut is not None and res2anchor[n_anchor] in hard_cut.keys():
                         hard_cut_flag = True
-                        breakers = [n_anchor+hard_cut[res2anchor[n_anchor]] ]
+                        breakers = [ n_anchor+hard_cut[res2anchor[n_anchor]] ]
                         print(f"[WARNING] HARD CUT BREAKER @ {breakers[0]} between {res2anchor[n_anchor]} | {res2anchor[c_anchor]}")
                     else:
                         split_mode = 5
@@ -1195,7 +1194,7 @@ def create_compact_indexing(gain_obj, subdomain:str, actual_anchors:dict, thresh
                         if prio is not None:
                             priorities = [ prio[res2anchor[a]] for a in found_anchors ]
                             best_anchor = found_anchors[np.argmax(priorities)]
-                            return {best_anchor:[sse]}, split_mode
+                            return {best_anchor:sse}, split_mode
                                 
             c_boundaries[n_anchor] = breakers[0]-1
             n_boundaries[c_anchor] = breakers[0]+1
