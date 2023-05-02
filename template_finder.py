@@ -587,7 +587,7 @@ def create_subdomain_indexing(gain_obj, subdomain, actual_anchors, threshold=3, 
                 for i in range(sse[0]+gain_obj.start, sse[1]+1+gain_obj.start):
                     if gain_obj.sse_sequence[i] ==  "C":
                         coiled_residues.append(i-gain_obj.start)
-                    if gain_obj.sse_sequence[i] == 'h':
+                    if gain_obj.sse_sequence[i] in ['h','e']:
                         outlier_residues.append(i-gain_obj.start)
                 
                 if debug:
@@ -1300,7 +1300,7 @@ def create_compact_indexing(gain_obj, subdomain:str, actual_anchors:dict, thresh
             for i in range(first_res+1, last_res): # The start and end of a segment are never breaks.
                 if gain_obj.sse_sequence[i] ==  "C" or gain_obj.sse_sequence[i] == "T":
                     coiled_residues.append(i)
-                if gain_obj.sse_sequence[i] == 'h':
+                if gain_obj.sse_sequence[i] in ['h', 'e']:
                     outlier_residues.append(i)
             
             if debug:
