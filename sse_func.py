@@ -66,6 +66,54 @@ def read_sse_asg(file):
         
     return residue_sse
 
+def read_stride_angles(file, filter_letter=None):
+    '''
+    STRIDE output file parsing function, used for modified stride files contaning outliers as lowercase letters (H - h, G - g)
+    Parameters : 
+    file : str, required
+            STRIDE file to be read. 
+    filter_letter : str, optional
+            Filters entries to match a pre-assigneed secondary structure letter (E, H, ...) --> items[3]
+    Returns 
+        residue_sse : dict
+            DICT containing PHI and PSI float values for each residue number (PDB) as key.
+    '''
+    # Example lines:
+    # items[i]:
+    #  0    1 2    3    4    5             6         7         8         9        10
+    #ASG  THR A  458  453    E        Strand   -123.69    131.11       4.2      ~~~~
+    #ASG  SER A  459  454    E        Strand    -66.77    156.86      10.4      ~~~~
+    # 3 is the PDB index, 4 is the enumerating index, this is crucial for avoiding offsets, always take 3  
+    with open(file) as f:
+        asgs = [l for l in f.readlines() if l.startswith("ASG")]
+
+    angles = {}
+    for l in asgs:
+        items = l.split(None)   # [24] has the SSE one-letter code
+        if filter_letter is None or filter_letter == items[5]:
+            angles[int(items[3])] = [float(items[7]), float(items[8])]
+
+    return angles
+
+def get_angle_outlier(sse:list, stride_file:str, phi_mean_sd, psi_mean_sd, psi_prio=True):
+    # For strand outliers, prioritize PSI over PSI - with precalculated values of PHI and PSI mean+SD:
+    angles = read_stride_angles(stride_file)
+    phipsi = [phi_mean_sd, psi_mean_sd]
+    sse_angles = np.array([ angles[i] for i in range(sse[0],sse[1]) ])
+
+    if psi_prio:
+        order = [0,1]
+    else:
+        order = [1,0]
+    for i in order:
+        xangles = [ x+360 if x<0 else x for x in sse_angles[:,i]] # remove negative values for wrapping in negative angle values
+        max_deviance = np.argmax( [abs(x - phipsi[i][0]) for x in xangles] )
+        #print(f"{abs(xangles[max_deviance] - phipsi[i][0]) = } | {2*phipsi[i][1] = }")
+        if abs(xangles[max_deviance] - phipsi[i][0]) > 2*phipsi[i][1]:
+            return sse[0]+max_deviance
+    # If not outside 2 sigma, return None.
+    return None
+
 def read_seq(file, return_name=False):
     '''
     Read a sequence from a FASTA file, return sequence name if specified.
