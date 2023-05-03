@@ -393,7 +393,8 @@ def find_boundaries(sse_dict, seq_len, bracket_size=50, domain_threshold=50, coi
         for i, res in enumerate(scored_seq[gain_start:]):
             if res == -1:
                 print(f"[NOTE] Overwriting initial {gain_start = } with {i-truncate_N}.")
-                gain_start = i-truncate_N
+                gain_start = gain_start+i-truncate_N
+                break
     # After it found the most likely helical block, adjust the edge of that, designate as Subdomain A
     # adjust the subdomain boundary to be in the middle of the loop between Helix and Sheet
 
