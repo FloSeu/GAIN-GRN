@@ -81,7 +81,7 @@ def read_stride_angles(file, filter_letter=None):
     # Example lines:
     # items[i]:
     #  0    1 2    3    4    5             6         7         8         9        10
-    #ASG  THR A  458  453    E        Strand   -123.69    131.11       4.2      ~~~~
+    #
     #ASG  SER A  459  454    E        Strand    -66.77    156.86      10.4      ~~~~
     # 3 is the PDB index, 4 is the enumerating index, this is crucial for avoiding offsets, always take 3  
     with open(file) as f:
@@ -357,10 +357,8 @@ def find_boundaries(sse_dict, seq_len, bracket_size=50, domain_threshold=50, coi
 
     ### Find the interval with most negative values
     # First, check if there are valid boundaries!
-    try:
-        len(boundaries)
-    except TypeError:
-        print('No boundaries detected.')
+    if boundaries is None:
+        print('No boundaries detected. Returning empty.')
         return None, None
     
     helical_counts = np.zeros([len(boundaries)-1],dtype=int)
@@ -377,61 +375,60 @@ def find_boundaries(sse_dict, seq_len, bracket_size=50, domain_threshold=50, coi
     rev_helical = helical_counts[::-1]
 
     for rev_count, hel_len in enumerate(rev_helical):
-
         if hel_len >= domain_threshold:
-
             maxk = len(helical_counts)-(rev_count+1)
             break
 
     #print(f"[DEBUG] sse_func.find_boundaries : \n\tFound Helix boundary with the following characteristics: {maxk = } {helical_counts[maxk] = }(new variant)")
     # if it finds maxk, store the valies denoting the helical block for further refinement
-    if maxk != None:
-        gain_start, initial_boundary = boundaries[maxk], boundaries[maxk+1]
+    if maxk is None:
+        print("No Helical segment satisfying the domain_size found: Maximum helical segment =", max(helical_counts))
+        return None, None
     
+    gain_start, initial_boundary = boundaries[maxk], boundaries[maxk+1]
+
     # After it found the most likely helical block, adjust the edge of that, designate as Subdomain A
     # adjust the subdomain boundary to be in the middle of the loop between Helix and Sheet
 
-        helix_end = initial_boundary
-        sheet_start = initial_boundary
-        
-        if scored_seq[sheet_start] == 1:
-            while True:
-                sheet_start -= 1 # go left to find the end of the current sheet
-                if scored_seq[sheet_start] != 1:
-                    break
-        else:
-            while True:
-                sheet_start  += 1 # go right to find the start of the first Subdomain B sheet
-                if scored_seq[sheet_start] == 1:
-                    break
+    helix_end = initial_boundary
+    sheet_start = initial_boundary
+    
+    if scored_seq[sheet_start] == 1:
+        while True:
+            sheet_start -= 1 # go left to find the end of the current sheet
+            if scored_seq[sheet_start] != 1:
+                break
+    else:
+        while True:
+            sheet_start  += 1 # go right to find the start of the first Subdomain B sheet
+            if scored_seq[sheet_start] == 1:
+                break
 
-        if scored_seq[helix_end] != -1: # go left to find the end of the last Subdomain A Helix
-            while True:
-                helix_end -= 1
-                if scored_seq[helix_end] == -1:
-                    break
-        else:   
-            while True:
-                helix_end += 1 # go right to find the end of the last Subdomain A Helix
-                if scored_seq[helix_end] != -1:
-                    break
-        nocoil = True
-        if coil_weight != 0:
-            nocoil = False
-        # Final sanity check to see if there are any SSE left in the interval between helix_end and sheet_start
-        #if np.count_nonzero(scored_seq[helix_end+1:sheet_start]) > 1 : # This threw a warning when coil_weight != 0
-        if not nocoil and 1 in scored_seq[helix_end+1:sheet_start]:
-            print("[WARNING] sse_func.find_boundaries : "
-                "There are still secondary-structure associated residues within the Subdomain connecting loop. Please check if this is within limits:\n"
-                f"{scored_seq[helix_end+1:sheet_start]}")
+    if scored_seq[helix_end] != -1: # go left to find the end of the last Subdomain A Helix
+        while True:
+            helix_end -= 1
+            if scored_seq[helix_end] == -1:
+                break
+    else:   
+        while True:
+            helix_end += 1 # go right to find the end of the last Subdomain A Helix
+            if scored_seq[helix_end] != -1:
+                break
+    nocoil = True
+    if coil_weight != 0:
+        nocoil = False
+    # Final sanity check to see if there are any SSE left in the interval between helix_end and sheet_start
+    #if np.count_nonzero(scored_seq[helix_end+1:sheet_start]) > 1 : # This threw a warning when coil_weight != 0
+    if not nocoil and 1 in scored_seq[helix_end+1:sheet_start]:
+        print("[WARNING] sse_func.find_boundaries : "
+            "There are still secondary-structure associated residues within the Subdomain connecting loop. Please check if this is within limits:\n"
+            f"{scored_seq[helix_end+1:sheet_start]}")
 
-        subdomain_boundary = (helix_end+sheet_start) // 2  # The subdomain bondary is the middle of the two SSEs limiting the sections
-        #if subdomain_boundary - gain_start >= domain_threshold:
-        #print(f"DEBUG: find_boundaries returning {boundaries[maxk] = }, {boundaries[maxk+1] = }")
-        return gain_start, subdomain_boundary
+    subdomain_boundary = (helix_end+sheet_start) // 2  # The subdomain bondary is the middle of the two SSEs limiting the sections
+    #if subdomain_boundary - gain_start >= domain_threshold:
+    #print(f"DEBUG: find_boundaries returning {boundaries[maxk] = }, {boundaries[maxk+1] = }")
+    return gain_start, subdomain_boundary
 
-    # If you did not find the maxk previously:
-    return None, None
 
 def sse_sequence2bools(sse_dict:dict):
     '''
