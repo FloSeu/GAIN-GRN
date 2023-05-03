@@ -926,6 +926,7 @@ def get_agpcr_type(name):
                 ('ag-?.*-?coupled-?receptor-?.-?\d', name.lower(),lambda x: x[-1].replace('-','')[-2:].upper()),
                 ('brain-?specific-?angiogenesis-?inhibitor-?\d', name.lower(), lambda x: f"B{x[-1][-1]}"),
                 ('emr\d', name.lower(), lambda x: f"E{x[-1][-1]}"),
+                ('adhesion.?g.*coupled.?receptor...', name.lower(), lambda x: x[-1][-2:].upper())
                 ]
     for pattern, searchstring, output in queries:
         match = re.findall(pattern, searchstring)

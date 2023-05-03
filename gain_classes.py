@@ -996,3 +996,182 @@ class GPS:
             Returns None '''
         print(f"Info about this GPS:\n{self.isConsensus = }\n{self.indices = }\n"
             f"{self.sequence = }\n{self.alignment_indices = }\n{self.residue_numbers = }")
+        
+class ExtractedGain:
+    '''
+    Instantiates the data from stride and the alignment, checking if the object is a GAIN domain
+    and if so, creating analysis and establishing the indexing based on the results
+
+    Attributes
+    ----------
+    name : str
+        The name of the GAIN sequence
+    isValid : bool
+        Is True if the roughest GAIN domain criteria are met. Can be used for skipping invalid sequences.
+    hasSubdomain : bool
+        Is True if the subdomain detection has been successful. Can be used for filtering GAIN criteria.
+    complete_sse_dict : dict
+        The complete dictionary of all secondary structure elements (SSE) in the whole sequence
+    sse_dict : dict
+        The truncated dictionary of all SSE within the GAIN domain only
+    start : int
+        Start index of the GAIN domain
+    end : int
+        End index of the GAIN domain
+    subdomain_boundary : int
+        Residue index of the GAIN domain subdomain boundary (A/B)
+    index : list
+        List of residue indices belonging to the GAIN domain
+    sequence : numpy array
+        List of amino acid one letter codes of the GAIN domain
+    alignment_indices : list
+        List of alignment indices corresponding to each GAIN domain residue
+    sse_name_map : list
+        List of names for each residue corresponding to the SELF-CONSISTENT naming method (NOT NOMENCLATURE!)
+    sse_sequence : list
+        List of all indices of residues with their corresponding Helix or Strand assignment
+    stride_outlier_mode : bool, optional
+            indicates of the STRIDE files contan "h" and "g" to indicate outlier SSE residues used to refine the SSE detection
+    '''
+    def __init__(self,
+                 start, 
+                 subdomain_boundary, 
+                 end,
+                 name,
+                 sequence,
+                 stride_file,
+                 is_truncated=True,
+                 stride_outlier_mode=True,
+                 debug=False):   
+        ''' Initilalizes the GainDomain object and checks for GainDomain criteria to be fulfilled
+        Parameters
+        ----------
+        alignment_file :    str, required
+            The alignment file where the sequence can be found. For base dataset, this is default,
+            for new GAIN domains, this is the extended alignment file
+
+        aln_cutoff :        int, required
+            Index of the last Alignment column to be read
+
+        quality:            list, required
+            List of quality valus for each alignment column. Has to have $aln_cutoff items
+            By default, would take in the annotated Blosum62 values from the alignment exported from Jalview
+
+        gps_index:          int, required
+            Alignment column index of the GPS-1 residue (consensus: Leu)
+
+        alignment_dict :    dict, optional
+            A dictionary containing all entries by name from the input alignment. Speeds up computation significantly
+
+        fasta_file :    str, optional
+            The fasta file containing the sequence to be analyzed. Based on that, the STRIDE file 
+            from the base dataset will be parsed if not explicitly stated. Either this or name+sequence have to be specifed
+        
+        name :          str, optional
+            The name of the sequence. Enables reading from a compliled sequences object instead of individual files.
+
+        sequence :      str, optional
+            The one-letter coded sequence as string. Enables reading from a compliled sequences object instead of individual files.
+
+        subdomain_bracket_size: int, optional
+            Smoothing window size for the signal convolve function. Default = 20.
+
+        domain_threshold:   int, optional
+            Minimum size of a helical segment to be considered candidate for Subdomain A of GAIN domain. Default = 20.
+
+        coil_weight:        float, optional
+            Weight assigned to unordered residues during Subdomain detection. Enables decay of helical signal
+            default = 0. Recommended values < +0.2 for decay
+
+        explicit_stride_file: str, optional
+            Explicit existing STRIDE file for new GAIN domains, when not present in the base dataset. Will manually parse this
+            default = None
+
+        without_anchors :   bool, optional
+            Skips the Detection and calculation of self.Anchors for filtering purposes.
+
+        is_truncated :      bool, optional
+            indicates if the sequence is already truncated to only contain the GAIN domain
+        
+        truncation_map :     np.array(boolean), optional
+            For the workflow.py - if a sequence is added and there is truncation present, this map indicates the truncated residues.
+
+        aln_start_res :     int, optional
+            if already predetermined for mafft --add sequences, also pass the start column wtihin the alignment.
+        
+        debug:              bool, optional
+            specify if debug messages should be printed
+        Returns
+        ----------
+        None
+        '''
+        #Initialize self.name for finding the correspondent alignment row!
+        self.name = name
+        self.start, self.subdomain_boundary, self.end = start, subdomain_boundary, end
+        self.isValid, self.hasSubdomain = True, True # Unless specified otherwise.
+        if debug:
+            print(f"\n[DEBUG] gain_classes.GainDomain : Initializing GainDomain Object \n Name : {name}")
+        # Initalize SSE Dict (LOC) and the SSE sequence (ASG) from STRIDE outfile.
+        self.complete_sse_dict = sse_func.read_sse_loc(stride_file)
+        self.sse_sequence = sse_func.read_sse_asg(stride_file) # This is already including the helical and strand outliers.
+        # Try to detect GAIN-like order of SSE. Frist criterion is a C-terminal strand being present (= Stachel/TA)
+
+        # Find the domain boundaries (this includes a check whether the sequence is in fact a GAIN)
+        # Will return (None, None) if checks fail. 
+
+        if self.start == None:
+            print("No Subdomain boundaries detected. Possible Fragment found. Pretending it is only Subdomain B.")
+            # For possible Fragment detection (i.e. Subdomain B only sequences), set start as the N-terminal res. of the first beta sheet    
+            self.start = np.amin(np.array(self.complete_sse_dict["Strand"]))
+        
+        # Initialize residue indices as list, starting form zero, indexing EXISTING residues including "X" etc.
+        self.index = list(range(0, self.end-self.start+1))
+        # Initialize one-letter GAIN sequence as list
+        if debug:
+            print(f"[DEBUG] gain_classes.GainDomain :\n\t{self.start = }\n\t{self.end = }\n\t{len(sequence) = }\n\t{self.end-self.start+1 = }")
+
+        if is_truncated:
+            # SANITY CHECK: There might occur a case where the GAIN domain is detected anew (i.e. when different parameters are used). There might be a truncation therefore.
+            #               If that is the case, truncate the sequence N-terminally to that only ((self.end-self.start+1)) residues are included
+            if len(sequence) > (self.end-self.start+1):
+                print(f"[DEBUG] gain_classes.GainDomain : {self.name}\nDETECTED ALTERED GAIN DOMAIN DETECTION. TRUNCATING @ RESIDUE : {len(sequence)-self.end+self.start}"
+                    f"\n\t{self.start = }\t{self.end = }\n\t{len(sequence) = }\n\t{self.end-self.start+1 = }")
+                self.sequence = np.asarray(list(sequence[len(sequence)-self.end+self.start:])) # Begin with the new first residue, end normally
+                print(f"[DEBUG]: gain_classes.GainDomain : \n\t {len(sequence) = }, {len(self.sequence) = }\n{sequence}\n{''.join(self.sequence)}")
+
+            elif len(sequence) < (self.end-self.start): 
+                # This is an edge case where the signal detection identifies a Sheet-segment in Subdomain A. Therefore, non-cons. GAIN domain.
+                print(f"[DEBUG] gain_classes.GainDomain : {self.name}\nSEQUENCE LENGTH SHORTER THAN DETECTED GAIN BOUNDARIES.!\n"
+                    f"IT WILL BE DECLARED INVALID.\n{len(sequence) = }\n{self.end-self.start = }")
+                self.sse_dict = sse_func.cut_sse_dict(self.start, self.end, self.complete_sse_dict)
+                print(f"[DEBUG] gain_classes.GainDomain.__init__():\n {self.subdomain_boundary = }, {type(self.subdomain_boundary) = }")
+                if self.subdomain_boundary is None :
+                    self.subdomain_boundary = 0
+                self.isValid = False
+                self.hasSubdomain = False
+                return
+
+            else:
+                self.sequence = np.asarray(list(sequence))
+
+        # Cut down the SSE dictionary down to the GAIN only
+        self.sse_dict = sse_func.cut_sse_dict(self.start, self.end, self.complete_sse_dict)
+        
+        if self.hasSubdomain == True:
+            # enumeration + evaluation of subdomain SSE composition
+            alpha, beta = sse_func.get_subdomain_sse(self.sse_dict, 
+                                                     self.subdomain_boundary,
+                                                     self.start, 
+                                                     self.end,
+                                                     self.sse_sequence,
+                                                     stride_outlier_mode=stride_outlier_mode,
+                                                     debug=debug)
+
+            # offset correction. Since the PDB residues are one-indexed, we convert them to python zero-indexed. This is obsolete when the start is already at 0.
+            diff = self.start
+            if diff < 0: 
+                raise IndexError("NOTE: GainDomain start residue < 0. This should not be the case.")
+            self.sda_helices = np.subtract(alpha, diff)
+            if debug:
+                print(f"[DEBUG] gain_classes.GainDomain : {alpha = } ,{self.sda_helices = }")
+            self.sdb_sheets = np.subtract(beta, diff)
