@@ -1473,3 +1473,67 @@ def create_indexing(gain_domain, anchors:dict, anchor_occupation:dict, anchor_di
         indexing2longfile(gain_domain, nom_list, f"{outdir}/{gain_domain.name}.txt", offset=offset)
 
     return indexing_dir, indexing_centers, named_residue_dir, unindexed
+
+def detect_outliers(stride_file, outfile, sigmas=2):
+    # Absolute calculated limits from all stride files.
+    limits = [
+            [294.95423509417174, 6.764252033318323],  # hPHI
+            [321.2981172211187, 7.981525267998551], # hPSI
+            [245.24767527534797, 30.12930372850216], # sPHI
+            [136.614974076406, 33.94985372089623]   # sPSI
+              ]
+
+    d = open(stride_file).readlines()
+    lim_dict = {"H": (limits[0],limits[1]), "E":(limits[2],limits[3])}
+    newdata = []
+    for l in d:
+        if not l.startswith("ASG") or l[24] not in  "HE":
+            newdata.append(l)
+            continue
+
+        phi_lim, psi_lim = lim_dict[l[24]] # Depending on whether its strand or helix.
+
+        i = l.split()
+        angles = [float(i[7]), float(i[8])]
+
+        adj_angles = [a+360 if a<0 else a for a in angles]
+
+        if abs(adj_angles[0]-phi_lim[0]) > sigmas*phi_lim[1] or abs(adj_angles[1]-psi_lim[0]) > sigmas*psi_lim[1]:
+            # print("outlier found.", l, sep="\n")
+            k = l[:24]+l[24].lower()+l[25:]
+            newdata.append(k)        
+            continue
+        
+        newdata.append(l)
+    
+    with open(outfile, 'w') as out:
+        out.write("".join(newdata))
+    print(f"Modified STRIDE file {stride_file} into {outfile} to include outliers.")
+
+def grab_sse_bb(stride_file):
+    data = [l for l in open(stride_file).readlines() if l. startwith("ASG")]
+
+    helix_dict = {}
+    strand_dict = {}
+
+    for l in data:
+        items = l.split()
+        if items[5] == "E":
+            strand_dict[int(items[3])] = [float(items[7]), float(items[8])]
+        if items[5] == "H":
+            helix_dict[int(items[3])] = [float(items[7]), float(items[8])]
+    return helix_dict, strand_dict
+
+def get_bb_distribution(stride_set):
+    all_angles = np.array([[],[],[],[]], dtype=object)
+    for stride_file in stride_set:
+        helix_dict, strand_dict = grab_sse_bb
+        all_angles[0] += [v[0] for v in helix_dict.values()]
+        all_angles[1] += [v[1] for v in helix_dict.values()]
+        all_angles[2] += [v[0] for v in strand_dict.values()]
+        all_angles[3] += [v[1] for v in strand_dict.values()]
+    hphi = [np.mean(all_angles[0]), np.std(all_angles[0])]
+    hpsi = [np.mean(all_angles[1]), np.std(all_angles[1])]
+    sphi = [np.mean(all_angles[2]), np.std(all_angles[2])]
+    spsi = [np.mean(all_angles[3]), np.std(all_angles[3])]
+    return hphi, hpsi, sphi, spsi
