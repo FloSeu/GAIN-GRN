@@ -301,7 +301,7 @@ def detect_signchange(signal_array, exclude_zero=False, check=False):
     
     return boundaries
 
-def find_boundaries(sse_dict, seq_len, bracket_size=50, domain_threshold=50, coil_weight=0):
+def find_boundaries(sse_dict, seq_len, bracket_size=50, domain_threshold=50, coil_weight=0, truncate_N=None):
     '''
     make an array with the length of the sequence
     via np.convolve generate the freq of alpha-helix vs beta-sheets, 
@@ -321,6 +321,8 @@ def find_boundaries(sse_dict, seq_len, bracket_size=50, domain_threshold=50, coi
         coil_weight :   float, optional
             The numerical value assigned to unordered residues, used for faster "decay" of helical blocks if <0
             values of 0 to +0.2 may be tried
+        truncate_N:     int, optional, default: None
+            If set to True, the Domain will be immedately truncated $truncate_N residues N-terminally of the most N-terminal helix. 
 
     Returns:
         gain_start : int
@@ -387,6 +389,11 @@ def find_boundaries(sse_dict, seq_len, bracket_size=50, domain_threshold=50, coi
     
     gain_start, initial_boundary = boundaries[maxk], boundaries[maxk+1]
 
+    if truncate_N is not None:
+        for i, res in enumerate(scored_seq[gain_start:]):
+            if res == -1:
+                print(f"[NOTE] Overwriting initial {gain_start = } with {i-truncate_N}.")
+                gain_start = i-truncate_N
     # After it found the most likely helical block, adjust the edge of that, designate as Subdomain A
     # adjust the subdomain boundary to be in the middle of the loop between Helix and Sheet
 
