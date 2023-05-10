@@ -946,7 +946,7 @@ def assign_indexing(gain_obj:object, file_prefix: str, gain_pdb: str, template_d
                     'D1':'D',  'D2':'G7',
                     'E1':'E1', 'E2':'E1', 'E3':'E1', 'E4':'E1', 'E5':'E5', 'E' :'E1',
                     'F1':'F5', 'F2':'F4', 'F3':'F5', 'F4':'F4', 'F5':'F5', 'F' :'F5',
-                    'G1':'G7', 'G2':'G7', 'G3':'G7', 'G4':'G7', 'G5':'G7', 'G6':'G7', 'G7':'G7',
+                    'G1':'G5', 'G2':'G7', 'G3':'G5', 'G4':'G7', 'G5':'G5', 'G6':'G7', 'G7':'G7',
                     'L1':'L',  'L2':'L',  'L3':'L',  'L4':'L4',
                     'V1':'V'
                     }
@@ -962,7 +962,7 @@ def assign_indexing(gain_obj:object, file_prefix: str, gain_pdb: str, template_d
                     'V1':'E5b'
                     }
     # Predefined x.50 residues for each set template (= center)
-    sda_centers = { # REVISED H1 FOR CONS MATCH
+    sda_centers = { # REVISED H1 FOR CONS MATCH, ADDED G5 AND G1 for very small SUBDOMAIN A
                     'A' :{'H1'   :417 , 'H2':439 , 'H3':454 , 'H4':489 , 'H5':496 , 'H6':514 },
                     'C' :{'H1'   :464 , 'H2':484 , 'H3':498 , 'H4':541 , 'H5':549 , 'H6':567 },
                     'D' :{'H1.D1':390 , 'H2':420 , 'H3':435 , 'H4':480 , 'H5':488 , 'H6':506 },
@@ -970,6 +970,8 @@ def assign_indexing(gain_obj:object, file_prefix: str, gain_pdb: str, template_d
                     'E5':{                         'H3':268 , 'H4':303 ,            'H6':329 },
                     'F5':{'H1'   :537 , 'H2':555 , 'H3':572 , 'H4':606 , 'H5':614 , 'H6':632 },
                     'F4':{'H1.F4':133 , 'H2':145 , 'H3':158 ,            'H5':201 , 'H6':218 },
+                    #'G1':{                                    'H4':165 ,            'H6':189 },
+                    'G5':{                                    'H4':33  ,            'H6': 52 },
                     'G7':{'H1'   :149 , 'H2':164 , 'H3':178 , 'H4':212 , 'H5':219 , 'H6':239 },
                     'L' :{'H1'   :495 , 'H2':509 , 'H3':521 , 'H4':580 , 'H5':588 , 'H6':608 },
                     'L4':{'H1'   :196 , 'H2':212 , 'H3':224 , 'H4':266 , 'H5':274 , 'H6':294 },
