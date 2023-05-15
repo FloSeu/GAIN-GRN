@@ -234,6 +234,12 @@ def read_quality(jal):
 
 #### DETECTING BLOCK ####
 
+def find_pdb(name, pdb_folder):
+    # Finds a PDB within a directory containing the UniProtKB Accession of the provided Gain name.
+    identifier = name.split("-")[0]
+    target_pdb = glob.glob(f"{pdb_folder}/*{identifier}*.pdb")[0] # raises IndexError if not found.
+    return target_pdb
+
 def detect_GPS(alignment_indices, gps_minus_one):
     '''
     Detects the GPS residue at the specified index of the Alignment
