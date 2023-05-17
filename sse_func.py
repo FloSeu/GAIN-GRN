@@ -45,15 +45,16 @@ def read_sse_asg(file):
     Returns 
         residue_sse : dict
             DICT containing a sequence of all letters assigned to the residues with the key being the present residue
+        outliers    : dict
+            DICT containing all outlier residues outside of 2 sigma with the respectve float multiple of StdDev
     '''
 
-    with open(file) as f:
-        asgs = [l for l in f.readlines() if l.startswith("ASG")]
+    asgs = [l for l in open(file).readlines() if l.startswith("ASG")]
 
     first_res = int(asgs[0].split(None)[3])
     last_res = int(asgs[-1].split(None)[3]) 
     residue_sse = {k:"X" for k in range(first_res, last_res+1)}
-
+    outliers = {}
     for l in asgs:              # ASG is the per-residue ASSIGNMENT of SSE
                                 # LOC is already grouped from [start - ]
         items = l.split(None)   # [24] has the SSE one-letter code
@@ -61,12 +62,13 @@ def read_sse_asg(file):
         # items[i]:
         #  0    1 2    3    4    5             6         7         8         9        10
         #ASG  THR A  458  453    E        Strand   -123.69    131.11       4.2      ~~~~
-        #ASG  SER A  459  454    E        Strand    -66.77    156.86      10.4      ~~~~
+        #ASG  SER A  459  454    e        Strand    -66.77    156.86      10.4      2.97
         # 3 is the PDB index, 4 is the enumerating index, this is crucial for avoiding offsets, always take 3
         residue_sse[int(items[3])] = items[5]
         # if there is missing keys, just label them "X", since these are residues skipped by AlphaFold2 (i.e. "X")
-        
-    return residue_sse
+        if items[10] != "~~~~":
+            outliers[int(items[3])] = float(items[10])
+    return residue_sse, outliers
 
 def read_stride_angles(file, filter_letter=None):
     '''

@@ -466,11 +466,11 @@ class GainDomain:
         if explicit_stride_file:
             # Read directly from the explicitly stated STRIDE file. (new GAIN)
             self.complete_sse_dict = sse_func.read_sse_loc(explicit_stride_file)
-            self.sse_sequence = sse_func.read_sse_asg(explicit_stride_file)
+            self.sse_sequence, self.outliers = sse_func.read_sse_asg(explicit_stride_file)
         else:
             # Find SSE data in corresponding STRIDE files (base data). Extract corresponding STRIDE files from the list and read SSE from that. (base dataset)
             self.complete_sse_dict = sse_func.find_stride_file(self.name.replace(".fa","")) # previously: fasta_file.split("/")[-1][:-3]
-            self.sse_sequence = sse_func.read_sse_asg(self.name.replace(".fa",""))
+            self.sse_sequence, self.outliers = sse_func.read_sse_asg(self.name.replace(".fa",""))
         # Try to detect GAIN-like order of SSE. Frist criterion is a C-terminal strand being present (= Stachel/TA)
         try: 
             self.end = self.complete_sse_dict['Strand'][-1][1]
