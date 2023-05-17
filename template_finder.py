@@ -50,7 +50,7 @@ def get_pdb_extents(pdb, subdomain_boundary = None):
     print("NOTE: Subdomain boundary not specified. Returning [start, None, None, end]")
     return int(first), None, None, int(last)
 
-def run_gesamt_execution(list_of_gain_obj, outfolder, pdb_folder='../all_pdbs', domain='sda', n_threads=6, max_struc=400, no_run=False, template=None):
+def run_gesamt_execution(list_of_gain_obj, outfolder, gesamt_bin, pdb_folder='../all_pdbs', domain='sda', n_threads=6, max_struc=400, no_run=False, template=None):
     # Will compare all PDBS of a given list of GainDomain objects. It will compare all vs. all PDB files in the selection in the PDB folder
     # It will further create the given outfolder, if not existing, write a BASH-File with the commands for GESAMT and run if not otherwise specified.
     
@@ -106,14 +106,14 @@ def run_gesamt_execution(list_of_gain_obj, outfolder, pdb_folder='../all_pdbs', 
                 p2name = selection_pdbs[j]
                 myct +=1
                 run_id = f"{i}_{j}"
-                cmd_string += f'/home/hildilab/lib/xtal/ccp4-8.0/bin/gesamt {p1name} -s A/{extent_list[i]} {p2name} -s A/{extent_list[j]} > {outfolder}/{run_id}.out &\n'
+                cmd_string += f'{gesamt_bin} {p1name} -s A/{extent_list[i]} {p2name} -s A/{extent_list[j]} > {outfolder}/{run_id}.out &\n'
                 if myct % n_threads == 0:
                     cmd_string +="wait\n" # Delimiter for multiprocessing
             
         else: # No nested double for loop upon template specification
             myct +=1
             run_id = i
-            cmd_string += f'/home/hildilab/lib/xtal/ccp4-8.0/bin/gesamt {template} {p1name} -s A/{extent_list[i]}  > {outfolder}/{run_id}.out &\n'
+            cmd_string += f'{gesamt_bin} {template} {p1name} -s A/{extent_list[i]}  > {outfolder}/{run_id}.out &\n'
             if myct % n_threads == 0:
                 cmd_string +="wait\n" # Delimiter for multiprocessing
     
@@ -864,7 +864,7 @@ def calculate_anchor_distances(template_anchor_coords, mobile_pdb, mobile_anchor
 
     return dict(zip(mobile_anchors.keys(), matched_anchors)), dict(zip(mobile_anchors.keys(), min_dists))
 
-def find_best_templates(unknown_gain_obj, unknown_gain_pdb: str, sda_templates: dict, sdb_templates: dict, debug=False):
+def find_best_templates(unknown_gain_obj, gesamt_bin, unknown_gain_pdb: str, sda_templates: dict, sdb_templates: dict, debug=False):
     # Put in an unknown GAIN domain object and its corresponding PDB path to match against the set of templates.
     # This will then give the best match for subdomain A and subdomain B based on GESAMT pairwise alignment
     pdb_start, sda_boundary, sdb_boundary, pdb_end = get_pdb_extents(unknown_gain_pdb, unknown_gain_obj.subdomain_boundary)
@@ -877,7 +877,7 @@ def find_best_templates(unknown_gain_obj, unknown_gain_pdb: str, sda_templates: 
     b_names = []
 
     for sda_id, sda_pdb in sda_templates.items():
-        cmd_string = f'/home/hildilab/lib/xtal/ccp4-8.0/bin/gesamt {sda_pdb} {unknown_gain_pdb} -s A/{pdb_start}-{sda_boundary}'
+        cmd_string = f'{gesamt_bin} {sda_pdb} {unknown_gain_pdb} -s A/{pdb_start}-{sda_boundary}'
         output = run_command(cmd_string)
         # Read the RMSD value from the ouptut string returned by the function. No files are created here.
         match = re.search(r"RMSD\W+\:\W+[0-9]+\.[0-9]+",output)
@@ -892,7 +892,7 @@ def find_best_templates(unknown_gain_obj, unknown_gain_pdb: str, sda_templates: 
     best_sda = a_names[a_rmsds.index(min(a_rmsds))]
 
     for sdb_id, sdb_pdb in sdb_templates.items():
-        cmd_string = f'/home/hildilab/lib/xtal/ccp4-8.0/bin/gesamt {sdb_pdb} {unknown_gain_pdb} -s A/{sdb_boundary}-{pdb_end}'
+        cmd_string = f'{gesamt_bin} {sdb_pdb} {unknown_gain_pdb} -s A/{sdb_boundary}-{pdb_end}'
         output = run_command(cmd_string)
         # Read the RMSD value from the ouptut string returned by the function. No files are created here.
         match = re.search(r"RMSD\W+\:\W+[0-9]+\.[0-9]+",output)
@@ -935,7 +935,7 @@ def get_agpcr_type(name):
             return output(match)
     return 'X'
 
-def assign_indexing(gain_obj:object, file_prefix: str, gain_pdb: str, template_dir: str, hard_cut=None, debug=False, create_pdb=False, patch_gps=False):
+def assign_indexing(gain_obj:object, file_prefix: str, gain_pdb: str, template_dir: str, gesamt_bin:str, hard_cut=None, debug=False, create_pdb=False, patch_gps=False):
     if debug:
         print(f"[DEBUG] assign_indexing: {gain_obj.start = }\n\t{gain_obj.end = }\n\t{gain_obj.subdomain_boundary = }\n\t{gain_pdb = }")
     # Arbitrarily defined data for templates. Receptor type -> template ID
@@ -1000,6 +1000,8 @@ def assign_indexing(gain_obj:object, file_prefix: str, gain_pdb: str, template_d
             sdb_templates[p_name] = pdb
         else:
             sda_templates[p_name] = pdb
+    if debug:
+        print(f"{sda_templates = }\n{sdb_templates = }")
     # In case the file_prefix specifies a folder, check if the folder exists. If not, create it.
     if "/" in file_prefix:
         target_path = "/".join(file_prefix.split("/")[:-1])
@@ -1009,7 +1011,7 @@ def assign_indexing(gain_obj:object, file_prefix: str, gain_pdb: str, template_d
 
     # Get the agpcr-type and the corresponding templates to be matched.
     agpcr_type = get_agpcr_type(gain_obj.name)
-    if debug: print("[DEBUG] assign_indexing: agpcr_type =")
+    if debug: print(f"[DEBUG] assign_indexing: {agpcr_type = }")
     # If the type is unknown, get the best matching templates by performing RMSD after alignment via GESAMT
     if agpcr_type not in type_2_sda_template.keys():
         if agpcr_type[0] not in type_2_sda_template.keys():
@@ -1032,8 +1034,8 @@ def assign_indexing(gain_obj:object, file_prefix: str, gain_pdb: str, template_d
         print(f"[DEBUG] assign_indexing: Found receptor type and best corresponding templates:\n\t{agpcr_type = }\n\t{best_a = }\n\t{best_b = }\n\t{a_centers = }\n\t{b_centers = }")
 
     pdb_start, sda_boundary, sdb_boundary, pdb_end = get_pdb_extents(gain_pdb, gain_obj.subdomain_boundary)
-    a_cmd_string = f'/home/hildilab/lib/xtal/ccp4-8.0/bin/gesamt {sda_templates[best_a]} {gain_pdb} -s A/{pdb_start}-{sda_boundary}'
-    b_cmd_string = f'/home/hildilab/lib/xtal/ccp4-8.0/bin/gesamt {sdb_templates[best_b]} {gain_pdb} -s A/{sdb_boundary}-{pdb_end}'
+    a_cmd_string = f'{gesamt_bin} {sda_templates[best_a]} {gain_pdb} -s A/{pdb_start}-{sda_boundary}'
+    b_cmd_string = f'{gesamt_bin} {sdb_templates[best_b]} {gain_pdb} -s A/{sdb_boundary}-{pdb_end}'
     
     if create_pdb:
         a_cmd_string = a_cmd_string + f" -o {file_prefix}_sda.pdb"
