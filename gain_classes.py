@@ -347,8 +347,6 @@ class GainDomain:
         List of amino acid one letter codes of the GAIN domain
     alignment_indices : list
         List of alignment indices corresponding to each GAIN domain residue
-    sse_name_map : list
-        List of names for each residue corresponding to the SELF-CONSISTENT naming method (NOT NOMENCLATURE!)
     sse_sequence : list
         List of all indices of residues with their corresponding Helix or Strand assignment
     stride_outlier_mode : bool, optional
@@ -560,10 +558,7 @@ class GainDomain:
         if debug:
             print(f"[DEBUG] GainDomain : {self.alignment_indices = }")
 
-        # Check if sse_func.get_indices failed
-        try:
-            temp = self.alignment_indices[0]
-        except: 
+        if self.alignment_indices is None: # Check if sse_func.get_indices failed
             print("[WARNING]: Empty alignment indices detected. If this is unintended, check the alignment file.\n", self.name)
             self.isValid = False
             return
@@ -598,14 +593,12 @@ class GainDomain:
             diff = self.start
             if diff < 0: 
                 raise IndexError("NOTE: diff < 0. This should not be the case.")
-                diff = 0
+            
             self.sda_helices = np.subtract(alpha, diff)
-            if debug:
-                print(f"[DEBUG] gain_classes.GainDomain : {alpha = } ,{self.sda_helices = }")
             self.sdb_sheets = np.subtract(beta, diff)
         
         if not without_anchors:
-            # Gather the respective anchors for this GainDomain
+            # Gather the respective anchors for this GainDomain if SDA Helices are present.
             if not hasattr(self, 'sda_helices'):
                 if self.subdomain_boundary is None :
                     self.subdomain_boundary = 0
@@ -618,41 +611,18 @@ class GainDomain:
 
         if without_anchors:
             self.Anchors = None 
-
-        ### FUTURE CHANGE - The list is mainly for transforming the Alignment for visualization, might be removed later
-        def build_sse_sequence(self):
-            '''Create a sequence-like list where instead of the residue identifiers, sheets and helices are denoted.'''
-            sequence = np.full([self.end-self.start], fill_value='-', dtype='<U1')
-
-            if self.hasSubdomain == True:
-                for hel in self.sda_helices:
-                    sequence[hel[0]:hel[1]+1] = 'H'
-
-            for she in self.sdb_sheets:
-                sequence[she[0]:she[1]+1] = 'E'
-
-            return sequence
-        
-        if not without_anchors:
-            self.sse_sequence_list = build_sse_sequence(self)
     
     #### GainDomain METHODS
-
     def plot_profile(self, outdir=None, savename=None, noshow=True):
         '''
         Plots the SSE profile and quality profile of the GainDomain. Can be saved into {outdir}
         Also denotes whether this object is a GAIN domain or not.
 
-        Parameters
-        ----------
         outdir : str, optional
             Output directory if the Figure should be saved
 
-        Returns
-        ----------
-        None     
+        Returns None
         '''
-        # Initialize Figure
         fig = plt.figure(figsize=[8,2])
         fig.set_facecolor("w")
         plt.title(self.name)
@@ -662,14 +632,14 @@ class GainDomain:
         if self.subdomain_boundary:
             plt.plot(np.arange(self.start,self.subdomain_boundary,1),
                 self.residue_quality[:self.subdomain_boundary-self.start], 
-                 color='dodgerblue')
-            plt.plot(np.arange(self.subdomain_boundary,self.end+1,1), #self.end+1 or not +1? Seems to cause errors sometimes, depending on truncation method
-                 self.residue_quality[self.subdomain_boundary-self.start:], 
-                 color='darkorange')
+                color='dodgerblue')
+            plt.plot(np.arange(self.subdomain_boundary,self.end+1,1), 
+                self.residue_quality[self.subdomain_boundary-self.start:], 
+                color='darkorange')
         else:
             plt.plot(np.arange(self.start,self.end+1,1),
-                 self.residue_quality, 
-                 color='black')
+                self.residue_quality, 
+                color='black')
 
         # The bottom part has the SSE profile plotted as horizontal lines colored to SSE type
         if "Strand" in self.sse_dict.keys():
@@ -754,7 +724,6 @@ class GainDomain:
         if debug:
             print(signal)
         boundaries = sse_func.detect_signchange(signal, exclude_zero=True)
-        #print(boundaries)
 
         # Initialize Figure
         fig = plt.figure(figsize=[8,2])
@@ -782,15 +751,9 @@ class GainDomain:
     def write_sequence(self, savename):
         '''
         Super thin wrapper for calling write2fasta as a GainDomain inherent function
-        .
-        Parameters
-        ----------
-        savename : str, required
-            Name of the Output file
-        .
-        Returns
-        ----------
-        None
+            savename : str, required
+                Name of the Output file
+        Returns None
         '''
         sse_func.write2fasta(self.sequence, self.name, savename)
 
@@ -876,9 +839,6 @@ class Anchors:
             except:
                 continue
 
-            # For which (self-consistently enumerated) SSE is this
-            #sse_names.append(a_gain_domain.sse_name_map[best_index])
-
             # What is the associated quality value
             quality_values.append(a_gain_domain.residue_quality[best_index])   
             # In which alignment column is it
@@ -930,8 +890,6 @@ class GPS:
     ----------
     info()
         Prints info about this particular GPS
-
-
     '''
     def __init__(self, alignment_indices, sse_dict, index,  
                  sequence, start, gps_minus_one):
@@ -1026,8 +984,6 @@ class ExtractedGain:
         List of amino acid one letter codes of the GAIN domain
     alignment_indices : list
         List of alignment indices corresponding to each GAIN domain residue
-    sse_name_map : list
-        List of names for each residue corresponding to the SELF-CONSISTENT naming method (NOT NOMENCLATURE!)
     sse_sequence : list
         List of all indices of residues with their corresponding Helix or Strand assignment
     stride_outlier_mode : bool, optional
@@ -1046,61 +1002,26 @@ class ExtractedGain:
         ''' Initilalizes the GainDomain object and checks for GainDomain criteria to be fulfilled
         Parameters
         ----------
-        alignment_file :    str, required
-            The alignment file where the sequence can be found. For base dataset, this is default,
-            for new GAIN domains, this is the extended alignment file
-
-        aln_cutoff :        int, required
-            Index of the last Alignment column to be read
-
-        quality:            list, required
-            List of quality valus for each alignment column. Has to have $aln_cutoff items
-            By default, would take in the annotated Blosum62 values from the alignment exported from Jalview
-
-        gps_index:          int, required
-            Alignment column index of the GPS-1 residue (consensus: Leu)
-
-        alignment_dict :    dict, optional
-            A dictionary containing all entries by name from the input alignment. Speeds up computation significantly
-
-        fasta_file :    str, optional
-            The fasta file containing the sequence to be analyzed. Based on that, the STRIDE file 
-            from the base dataset will be parsed if not explicitly stated. Either this or name+sequence have to be specifed
-        
-        name :          str, optional
+        start :         int, required
+            residue number of the GAIN domain start previously obtained
+        subdomain_boundary: int, required
+            residue number of the subdomain boundary previously obtained
+        end   :         int, required
+            residue number of the GAIN domain end previously obtained
+        name :          str, required
             The name of the sequence. Enables reading from a compliled sequences object instead of individual files.
-
         sequence :      str, optional
             The one-letter coded sequence as string. Enables reading from a compliled sequences object instead of individual files.
-
-        subdomain_bracket_size: int, optional
-            Smoothing window size for the signal convolve function. Default = 20.
-
-        domain_threshold:   int, optional
-            Minimum size of a helical segment to be considered candidate for Subdomain A of GAIN domain. Default = 20.
-
-        coil_weight:        float, optional
-            Weight assigned to unordered residues during Subdomain detection. Enables decay of helical signal
-            default = 0. Recommended values < +0.2 for decay
-
-        explicit_stride_file: str, optional
+        stride_file: str, required
             Explicit existing STRIDE file for new GAIN domains, when not present in the base dataset. Will manually parse this
             default = None
-
-        without_anchors :   bool, optional
-            Skips the Detection and calculation of self.Anchors for filtering purposes.
-
         is_truncated :      bool, optional
             indicates if the sequence is already truncated to only contain the GAIN domain
-        
-        truncation_map :     np.array(boolean), optional
-            For the workflow.py - if a sequence is added and there is truncation present, this map indicates the truncated residues.
-
-        aln_start_res :     int, optional
-            if already predetermined for mafft --add sequences, also pass the start column wtihin the alignment.
-        
+        stride_outlier_mode:        bool, optional; default=Tue
+            indicated if outliers will be parsed from the STRIDE file (lower-case letters as assigned SSE)
         debug:              bool, optional
             specify if debug messages should be printed
+
         Returns
         ----------
         None

@@ -4,6 +4,8 @@
 
 import glob
 import numpy as np
+from cmath import rect, phase
+from math import radians, degrees, atan2, sin, cos
 
 #### READ BLOCK ####
 
@@ -1511,7 +1513,7 @@ def detect_outliers(stride_file, outfile, sigmas=2):
     print(f"Modified STRIDE file {stride_file} into {outfile} to include outliers.")
 
 def grab_sse_bb(stride_file):
-    data = [l for l in open(stride_file).readlines() if l. startwith("ASG")]
+    data = [l for l in open(stride_file).readlines() if l.startswith("ASG")]
 
     helix_dict = {}
     strand_dict = {}
@@ -1524,16 +1526,27 @@ def grab_sse_bb(stride_file):
             helix_dict[int(items[3])] = [float(items[7]), float(items[8])]
     return helix_dict, strand_dict
 
+def mean_angle(deg):
+    return degrees(phase(sum(rect(1, radians(d)) for d in deg)/len(deg)))
+
+def angle_diff(a,b):
+    ra, rb = radians(a), radians(b)
+    return degrees(atan2(sin(ra-rb), cos(ra-rb)))
+
+def angle_stdev(deg, mean):
+    return np.sqrt( np.sum([(angle_diff(d,mean))**2 for d in deg])/len(deg) )
+
 def get_bb_distribution(stride_set):
-    all_angles = np.array([[],[],[],[]], dtype=object)
+    all_angles = [[],[],[],[]]
     for stride_file in stride_set:
-        helix_dict, strand_dict = grab_sse_bb
-        all_angles[0] += [v[0] for v in helix_dict.values()]
-        all_angles[1] += [v[1] for v in helix_dict.values()]
-        all_angles[2] += [v[0] for v in strand_dict.values()]
-        all_angles[3] += [v[1] for v in strand_dict.values()]
-    hphi = [np.mean(all_angles[0]), np.std(all_angles[0])]
-    hpsi = [np.mean(all_angles[1]), np.std(all_angles[1])]
-    sphi = [np.mean(all_angles[2]), np.std(all_angles[2])]
-    spsi = [np.mean(all_angles[3]), np.std(all_angles[3])]
+        helix_dict, strand_dict = grab_sse_bb(stride_file)
+        [all_angles[0].append(v[0]) for v in helix_dict.values()]
+        [all_angles[1].append(v[1]) for v in helix_dict.values()]
+        [all_angles[2].append(v[0]) for v in strand_dict.values()]
+        [all_angles[3].append(v[1]) for v in strand_dict.values()]
+    hphi = [mean_angle(all_angles[0]), angle_stdev(all_angles[0], mean_angle(all_angles[0]))]
+    hpsi = [mean_angle(all_angles[1]), angle_stdev(all_angles[1], mean_angle(all_angles[1]))]
+    sphi = [mean_angle(all_angles[2]), angle_stdev(all_angles[2], mean_angle(all_angles[2]))]
+    spsi = [mean_angle(all_angles[3]), angle_stdev(all_angles[3], mean_angle(all_angles[3]))]
     return hphi, hpsi, sphi, spsi
+

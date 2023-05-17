@@ -68,10 +68,10 @@ if __name__ == '__main__':
                                 n_threads=5,
                                 debug=False)
 
-    header, matrix = stal_indexing.construct_data_matrix(unique_sse=True)
-    stal_indexing.data2csv(header, matrix, "../stal_indexing_u.csv")
+    header, matrix = stal_indexing.construct_data_matrix(unique_sse=False)
+    stal_indexing.data2csv(header, matrix, "../stal_indexing.g5.csv")
 
     with open("stal_indexing.pkl","wb") as save:
         pickle.dump(stal_indexing, save)
 
-    print("Done creating and saving stal_indexing.pkl")
+    print("Done creating and saving stal_indexing.g5.pkl")
