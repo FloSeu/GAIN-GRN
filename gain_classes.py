@@ -1,16 +1,13 @@
 # gain_classes.py
 
 # Object structure:
-#
 
 # GainCollection ---|- GainDomain ---|- Anchors
 #                   |- GainDomain    |- GPS
 #                   |- ...
-
 import matplotlib.pyplot as plt
 import numpy as np
 import sse_func
-import scipy.stats as stats
 
 class GainCollection:
     ''' 
@@ -271,7 +268,7 @@ class GainCollection:
                 f.write(f">{key}\n{''.join(out_dict[key])}\n")
         print(f"Done transforming alignment {input_alignment} to {output_alignment} with SSE data.")
             
-    def plot_sse_hist(self, title=None, n_max = 15, alpha=0.1, savename=None):
+    def plot_sse_hist(self, title=None, n_max = 15, savename=None):
         n_bins = n_max + 1
         sheets = []
         helices = []
@@ -289,10 +286,8 @@ class GainCollection:
             fig.suptitle(title, fontsize=14)
 
         for i, values in enumerate([helices, sheets]):
-            n, x, _ = plt.hist(values, bins = np.linspace(0,n_max, n_bins), histtype=u'bar', density=True, color=cols[i],alpha=1, align='left')
-            #density = stats.gaussian_kde(values)
-            #plt.plot(x, density(x), color=cols[i])
-            #if alpha!=0: plt.fill_between(x,density(x), color=cols[i],alpha=alpha)
+            plt.hist(values, bins = np.linspace(0,n_max, n_bins), histtype=u'bar', density=True, color=cols[i],alpha=1, align='left')
+
         plt.xticks(ticks = range(n_max+1), labels = range(n_max+1))
 
         if savename:
@@ -592,7 +587,7 @@ class GainDomain:
             # offset correction. Since the PDB residues are one-indexed, we convert them to python zero-indexed. This is obsolete when the start is already at 0.
             diff = self.start
             if diff < 0: 
-                raise IndexError("NOTE: diff < 0. This should not be the case.")
+                raise IndexError("[ERROR] START OF THE GAIN DOMAIN IS SMALLER THAN ZERO. This should not be the case.")
             
             self.sda_helices = np.subtract(alpha, diff)
             self.sdb_sheets = np.subtract(beta, diff)
@@ -603,7 +598,7 @@ class GainDomain:
                 if self.subdomain_boundary is None :
                     self.subdomain_boundary = 0
                 self.plot_helicality(savename=f"{self.name}_NO_HELICES.png")
-                print(f"[ERROR] gain_classes.__init()__ : NO SDA HELICES DETECTED\n{self.name}")
+                print(f"[WARNING] gain_classes.__init__(): NO SDA HELICES DETECTED\n{self.name}")
                 self.isValid = False 
                 self.hasSubdomain = False
                 return
