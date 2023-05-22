@@ -6,7 +6,7 @@ import glob
 import multiprocessing as mp
 
 class StAlIndexing:
-    def __init__(self, list_of_gain_obj, prefix:str, pdb_dir:str,  template_dir:str, n_threads=1, fasta_offsets=None, debug=False):
+    def __init__(self, list_of_gain_obj, prefix:str, pdb_dir:str,  template_dir:str, template_json:str, gesamt_bin:str, n_threads=1, fasta_offsets=None, debug=False):
 
         def find_pdb(name, pdb_folder):
             identifier = name.split("-")[0]
@@ -14,15 +14,7 @@ class StAlIndexing:
             return target_pdb
 
         length = len(list_of_gain_obj)
-        #names = np.empty([length], dtype=object)
-        #indexing_dirs = np.empty([length], dtype=object)
-        #center_dirs = np.empty([length], dtype=object)
-        #offsets = np.zeros([length], dtype=int)
         total_keys = []
-        #total_unindexed = []
-        #receptor_types = np.empty([length], dtype='<U2')
-        #a_templates = np.empty([length], dtype='<U4')
-        #b_templates = np.empty([length], dtype='<U2')
 
         if fasta_offsets is None:
             self.fasta_offsets = np.zeros([length])
@@ -65,6 +57,8 @@ class StAlIndexing:
                                                                                         file_prefix=f"{prefix}_{gain_index}", 
                                                                                         gain_pdb=find_pdb(gain.name, pdb_dir), 
                                                                                         template_dir=template_dir, 
+                                                                                        gesamt_bin=gesamt_bin,
+                                                                                        template_json=template_json,
                                                                                         debug=debug, 
                                                                                         create_pdb=False,
                                                                                         hard_cut={"S2":7,"S6":3,"H5":3},

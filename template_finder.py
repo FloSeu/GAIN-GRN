@@ -998,12 +998,15 @@ def assign_indexing(gain_obj:object, file_prefix: str, gain_pdb: str, template_d
 
     target_a_centers = find_anchor_matches(f'{file_prefix}_sda.out', a_centers, isTarget=False, debug=debug)
     target_b_centers = find_anchor_matches(f'{file_prefix}_sdb.out', b_centers, isTarget=False, debug=debug)
-
+    a_template_matches, _ = read_gesamt_pairs(f'{file_prefix}_sda.out', return_unmatched=False)
+    b_template_matches, _ = read_gesamt_pairs(f'{file_prefix}_sdb.out', return_unmatched=False)
     if debug:
         print(f"[DEBUG] assign_indexing: The matched anchors of the target GAIN domain are:{target_a_centers = }\n\t{target_b_centers = }")
 
-    a_out = list(create_compact_indexing(gain_obj, 'a', target_a_centers, threshold=3, padding=1, hard_cut=hard_cut, prio=tdata.anchor_priority, debug=debug) ) # [dict, dict, dict, list]
-    b_out = list(create_compact_indexing(gain_obj, 'b', target_b_centers, threshold=1, padding=1, hard_cut=hard_cut, prio=tdata.anchor_priority, debug=debug) )
+    a_out = list(create_compact_indexing(gain_obj, 'a', target_a_centers, threshold=3, template_matches=a_template_matches,
+                                          template_extents=tdata.element_extents[best_a], hard_cut=hard_cut, prio=tdata.anchor_priority, debug=debug) ) # [dict, dict, dict, list]
+    b_out = list(create_compact_indexing(gain_obj, 'b', target_b_centers, threshold=1, template_matches=b_template_matches,
+                                         template_extents=tdata.element_extents[best_b], hard_cut=hard_cut, prio=tdata.anchor_priority, debug=debug) )
     highest_split = max([a_out[4], b_out[4]])
 
     # Patch the GPS into the output of the indexing methods.
@@ -1038,7 +1041,7 @@ def mp_assign_indexing(mp_args:list):
                                                                             patch_gps=mp_args[7])
     return [intervals, indexing_centers, indexing_dir, unindexed, params, mp_args[8]]
 
-def create_compact_indexing(gain_obj, subdomain:str, actual_anchors:dict, threshold=3, padding=1, hard_cut=None, prio=None, debug=False):
+def create_compact_indexing(gain_obj, subdomain:str, actual_anchors:dict, template_matches=None, template_extents=None, threshold=3, hard_cut=None, prio=None, debug=False):
     ''' 
     Makes the indexing list, this is NOT automatically generated, since we do not need this for the base dataset
     Prints out the final list and writes it to file if outdir is specified
@@ -1051,6 +1054,10 @@ def create_compact_indexing(gain_obj, subdomain:str, actual_anchors:dict, thresh
         the name of the subdomain "a", "b"
     actual_anchors : dict, required
         Dictionary of anchors with each corresponding to the matched template anchor. This should already be the residue of this GAIN domain
+    template_matches : dict, optional
+        Dictionary of int->int matches of every template residue to the target. Needs to be provided along $template_extents
+    template_extent : dict, optional
+        Dictionary of the residue extents of the Template elements. These are TEMPLATE residue indices, not the target ones!
     anchor_dict : dict, required
         Dictionary where each anchor index is assigned a name (H or S followed by a greek letter for enumeration)
     offset : int,  optional (default = 0)
@@ -1192,6 +1199,7 @@ def create_compact_indexing(gain_obj, subdomain:str, actual_anchors:dict, thresh
 
     # Go through each individual SSE in the GAIN SSE dictionary
     for idx, sse in enumerate(sses):
+        
         first_res, last_res = sse[0]+gain_obj.start, sse[1]+gain_obj.start # These are PDB-matching indices
 
         if debug:print(f"[DEBUG] create_compact_indexing : \nNo. {idx+1}: {sse}\n{first_res = }, {last_res = }")
@@ -1202,22 +1210,13 @@ def create_compact_indexing(gain_obj, subdomain:str, actual_anchors:dict, thresh
         n_found_anchors = len(found_anchors)
 
         if n_found_anchors == 0:
-            isPadded = False
-            # Try finding the anchor with extending the residue by padding
-            for res in res2anchor:
-                if res == first_res-padding or res == last_res+padding:
-                    if debug:
-                        print(f"[DEBUG] create_compact_indexing : Found padded anchor \n{res = }\n{res2anchor[res] = }\n\t{[first_res, last_res] = }")
-                    # Find the closest residue to the anchor column index. N-terminal wins if two residues tie.
-                    name_list, cast_values = create_name_list([first_res, last_res], res, res2anchor[res])
-                    isPadded =True
-                    break
-            # If there is an unadressed SSE with length 3 or more, then add this to unindexed.
-            if not isPadded and sse[1]-sse[0] > threshold:
+            # If no anchor is found, move to $unindexed and check for overlap of unindexed template elements in a second pass.
+            # Check of overlapping non-indexed template elements. This should be done AFTER all normal matches are there
+
+            if sse[1]-sse[0] > threshold:
                 if debug: 
                     print(f"[DEBUG] create_compact_indexing : No anchor found! \n {[first_res, last_res] = }")
-                unindexed.append(first_res)
-
+                unindexed.append([first_res, last_res])
             continue
 
         if n_found_anchors == 1:
@@ -1262,5 +1261,33 @@ def create_compact_indexing(gain_obj, subdomain:str, actual_anchors:dict, thresh
                  # Also write split stuff to the new dictionary
                 for entryidx, entry in enumerate(name_list): 
                     named_residue_dir[entry] = entryidx+segment[0]
-           
+
+
+    #	unassigned_template_extents = {'S1': [64, 68]}
+    #	unindexed = [[86, 89], [118, 120]]
+    
+    # Second pass: Check for overlapping unindexed template elements:
+    if template_extents is not None:
+        # Filter only extents of unassigned elements
+        unassigned_template_extents = {k:v for k,v in template_extents.items() if f"{k}.50" not in indexing_centers.keys()}
+        if debug: print(f"[DEBUG] create_compact_indexing :\n\t{unassigned_template_extents = }\n\t{unindexed = }")
+        if unassigned_template_extents:
+            for sse in unindexed:
+                for name, extent in unassigned_template_extents.items():
+                    exmatch = [template_matches[res][0] for res in range(extent[0], extent[1]+1) if template_matches[res][0] is not None]
+                    if debug: print(f"\t{extent = }\t{exmatch = }")
+                    if not exmatch:
+                        continue
+                    # check for overlap in the elements
+                    if (first_res <= exmatch[-1] and first_res >= exmatch[0]) or (last_res <= exmatch[-1] and last_res >= exmatch[0]): # the template element lies N- or C-terminal to the target
+                        element_anchor_res = actual_anchors[name][0] # This is the target residue corresponding to the anchor
+                        if debug:
+                            print(f"[DEBUG] create_compact_indexing : OFFSET CASE\n\t{first_res = } {last_res = } \n\t {extent = }\n\t{element_anchor_res = } {name = }")
+                        name_list, cast_values = create_name_list([first_res, last_res], element_anchor_res, name)
+                        nom_list, indexing_dir, indexing_centers = cast(nom_list, indexing_dir, indexing_centers, [first_res, last_res], name_list, cast_values)
+                        if debug: 
+                            print(f"[DEBUG] create_compact_indexing :\n\tFound offset Element {name} @ {element_anchor_res}\n\tTemplate: {extent}\n\t Target: {sse}\n\t{name_list = }\n\t{cast_values = }")
+                        unassigned_template_extents.pop(name)
+                        break
+
     return indexing_dir, indexing_centers, named_residue_dir, unindexed, split_mode
