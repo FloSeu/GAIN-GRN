@@ -9,6 +9,7 @@ import json
 import pandas as pd
 from sklearn.cluster import MiniBatchKMeans
 from sklearn.decomposition import PCA
+from types import SimpleNamespace
 
 def run_command(cmd, logfile=None, outfile=None):
     # The command would be the whole command line, in this case the gesamt command.
@@ -935,61 +936,12 @@ def get_agpcr_type(name):
             return output(match)
     return 'X'
 
-def assign_indexing(gain_obj:object, file_prefix: str, gain_pdb: str, template_dir: str, gesamt_bin:str, hard_cut=None, debug=False, create_pdb=False, patch_gps=False):
+def assign_indexing(gain_obj:object, file_prefix: str, gain_pdb: str, template_dir: str, gesamt_bin:str, template_json="tdata.json", hard_cut=None, debug=False, create_pdb=False, patch_gps=False):
     if debug:
         print(f"[DEBUG] assign_indexing: {gain_obj.start = }\n\t{gain_obj.end = }\n\t{gain_obj.subdomain_boundary = }\n\t{gain_pdb = }")
     # Arbitrarily defined data for templates. Receptor type -> template ID
-    type_2_sda_template = {
-                    'A1':'A',  'A2':'A',  'A3':'A', 
-                    'B1':'A',  'B2':'A',  'B3':'A',
-                    'C1':'C',  'C2':'C',  'C3':'C',
-                    'D1':'D',  'D2':'G7',
-                    'E1':'E1', 'E2':'E1', 'E3':'E1', 'E4':'E1', 'E5':'E5', 'E' :'E1',
-                    'F1':'F5', 'F2':'F4', 'F3':'F5', 'F4':'F4', 'F5':'F5', 'F' :'F5',
-                    'G1':'G5', 'G2':'G7', 'G3':'G5', 'G4':'G7', 'G5':'G5', 'G6':'G7', 'G7':'G7',
-                    'L1':'L',  'L2':'L',  'L3':'L',  'L4':'L4',
-                    'V1':'V'
-                    }
-    type_2_sdb_template = {
-                    'A1':'E5b', 'A2':'E5b', 'A3':'E5b', 
-                    'B1':'E5b', 'B2':'E5b', 'B3':'E5b',
-                    'C1':'E5b', 'C2':'E5b', 'C3':'E5b',
-                    'D1':'E5b', 'D2':'E5b',
-                    'E1':'E5b', 'E2':'E5b', 'E3':'E5b', 'E4':'E5b', 'E5':'E5b', 'E' :'E5b',
-                    'F1':'E5b', 'F2':'E5b', 'F3':'E5b', 'F4':'E5b', 'F5':'E5b', 'F' :'E5b',
-                    'G1':'G5b', 'G2':'E5b', 'G3':'G5b', 'G4':'E5b', 'G5':'G5b', 'G6':'E5b', 'G7':'E5b',
-                    'L1':'E5b', 'L2':'E5b', 'L3':'E5b', 'L4':'E5b',
-                    'V1':'E5b'
-                    }
-    # Predefined x.50 residues for each set template (= center)
-    sda_centers = { # REVISED H1 FOR CONS MATCH, ADDED G5 AND G1 for very small SUBDOMAIN A
-                    'A' :{'H1'   :417 , 'H2':439 , 'H3':454 , 'H4':489 , 'H5':496 , 'H6':514 },
-                    'C' :{'H1'   :464 , 'H2':484 , 'H3':498 , 'H4':541 , 'H5':549 , 'H6':567 },
-                    'D' :{'H1.D1':390 , 'H2':420 , 'H3':435 , 'H4':480 , 'H5':488 , 'H6':506 },
-                    'E1':{'H1.E1':142 ,            'H3':159 , 'H4':198 ,            'H6':221 },
-                    'E5':{                         'H3':268 , 'H4':303 ,            'H6':329 },
-                    'F5':{'H1'   :537 , 'H2':555 , 'H3':572 , 'H4':606 , 'H5':614 , 'H6':632 },
-                    'F4':{'H1.F4':133 , 'H2':145 , 'H3':158 ,            'H5':201 , 'H6':218 },
-                    'G1':{                                    'H4':165 ,            'H6':189 },
-                    'G5':{                                    'H4':33  ,            'H6': 52 },
-                    'G7':{'H1'   :149 , 'H2':164 , 'H3':178 , 'H4':212 , 'H5':219 , 'H6':239 },
-                    'L' :{'H1'   :495 , 'H2':509 , 'H3':521 , 'H4':580 , 'H5':588 , 'H6':608 },
-                    'L4':{'H1'   :196 , 'H2':212 , 'H3':224 , 'H4':266 , 'H5':274 , 'H6':294 },
-                    'V' :{'H1'   :529 , 'H2':546 , 'H3':558 , 'H4':589 ,            'H6':607 }
-                  }
-    sdb_centers = { # REVISED S4-9,12 FOR CONS MATCH
-                    'E5b':	{'S1':324, 'S2':333, 'S3':350, 'S4':359, 'S5':381, 'S6':409, 'S7':413, 'S8':430, 'S9':453, 'S10':459, 'S11':464, 'S12':478 ,'S13':487},
-                    'G5b':	{'S1': 65, 'S2':74,  'S3':88 , 'S4':107 ,'S5':130,			 'S7':148 ,'S8':166 ,'S9':186 ,'S10':198 ,'S11':203 ,'S12':217 ,'S13':226}
-                  }
-    sdb_gps_res = { 
-                    'E5b':  {"GPS-2":480, "GPS-1":481, "GPS+1":482},
-                    'G5b':  {"GPS-2":219, "GPS-1":220, "GPS+1":221}
-                  }
-    # Anchor priority to finally define override
-    anchor_priority  =  { 
-                        "H1" :60, "H2" :70, "H3" :80, "H4" :90, "H5" :80, "H6" :100,
-                        "S1" :70, "S2" :80, "S3" :90, "S4" :80, "S5" :85, "S6" :50, "S7" :90, "S8" :95, "S9" :90, "S10":80, "S11":98, "S12":99, "S13":100
-                        }
+    # Load the data associated with the templates from the JSON file.
+    tdata = SimpleNamespace(**json.load(open(template_json)))
     # evaluate the template dir and find sda and sdb templates:
     sda_templates = {}
     sdb_templates = {}
@@ -1013,22 +965,22 @@ def assign_indexing(gain_obj:object, file_prefix: str, gain_pdb: str, template_d
     agpcr_type = get_agpcr_type(gain_obj.name)
     if debug: print(f"[DEBUG] assign_indexing: {agpcr_type = }")
     # If the type is unknown, get the best matching templates by performing RMSD after alignment via GESAMT
-    if agpcr_type not in type_2_sda_template.keys():
-        if agpcr_type[0] not in type_2_sda_template.keys():
+    if agpcr_type not in tdata.type_2_sda_template.keys():
+        if agpcr_type[0] not in tdata.type_2_sda_template.keys():
             best_a, best_b = find_best_templates(gain_obj, gain_pdb, sda_templates, sdb_templates, debug=debug)
             if debug:
                 print(f"[DEBUG] assign_indexing: running template search with unknown receptor.\n{best_a = } {best_b = }")
         else:
-            best_a = type_2_sda_template[agpcr_type[0]]
-            best_b = type_2_sdb_template[agpcr_type[0]]
+            best_a = tdata.type_2_sda_template[agpcr_type[0]]
+            best_b = tdata.type_2_sdb_template[agpcr_type[0]]
     else:
-        best_a = type_2_sda_template[agpcr_type] # This is the best template ID, i.e. "A"
-        best_b = type_2_sdb_template[agpcr_type] #              -"-                   "E5b"
+        best_a = tdata.type_2_sda_template[agpcr_type] # This is the best template ID, i.e. "A"
+        best_b = tdata.type_2_sdb_template[agpcr_type] #              -"-                   "E5b"
         if debug: 
             print(f"Looking up best template for {agpcr_type = }: {best_a = } {best_b = }")
 
-    a_centers = sda_centers[best_a]
-    b_centers = sdb_centers[best_b]
+    a_centers = tdata.sda_centers[best_a]
+    b_centers = tdata.sdb_centers[best_b]
 
     if debug:
         print(f"[DEBUG] assign_indexing: Found receptor type and best corresponding templates:\n\t{agpcr_type = }\n\t{best_a = }\n\t{best_b = }\n\t{a_centers = }\n\t{b_centers = }")
@@ -1044,33 +996,19 @@ def assign_indexing(gain_obj:object, file_prefix: str, gain_pdb: str, template_d
     run_command(a_cmd_string, logfile=None, outfile=f'{file_prefix}_sda.out')
     run_command(b_cmd_string, logfile=None, outfile=f'{file_prefix}_sdb.out')
 
-    # Not needed if the template chains in the template PDBs are already !A
-    """    def rewrite_chains(pdb):
-        with open(pdb) as p:
-            data = p.read()
-        dx = data.split("ENDMDL", 1)
-        with open(pdb,'w') as p:
-            p.write(dx[0])
-            p.write("ENDMDL")
-            p.write(dx[1].replace(" A ", " B "))
-
-    if create_pdb:
-        rewrite_chains(f"{file_prefix}_sda.pdb")
-        rewrite_chains(f"{file_prefix}_sdb.pdb")"""
-
     target_a_centers = find_anchor_matches(f'{file_prefix}_sda.out', a_centers, isTarget=False, debug=debug)
     target_b_centers = find_anchor_matches(f'{file_prefix}_sdb.out', b_centers, isTarget=False, debug=debug)
 
     if debug:
         print(f"[DEBUG] assign_indexing: The matched anchors of the target GAIN domain are:{target_a_centers = }\n\t{target_b_centers = }")
 
-    a_out = list(create_compact_indexing(gain_obj, 'a', target_a_centers, threshold=3, padding=1, hard_cut=hard_cut, prio=anchor_priority, debug=debug) ) # [dict, dict, dict, list]
-    b_out = list(create_compact_indexing(gain_obj, 'b', target_b_centers, threshold=1, padding=1, hard_cut=hard_cut, prio=anchor_priority, debug=debug) )
+    a_out = list(create_compact_indexing(gain_obj, 'a', target_a_centers, threshold=3, padding=1, hard_cut=hard_cut, prio=tdata.anchor_priority, debug=debug) ) # [dict, dict, dict, list]
+    b_out = list(create_compact_indexing(gain_obj, 'b', target_b_centers, threshold=1, padding=1, hard_cut=hard_cut, prio=tdata.anchor_priority, debug=debug) )
     highest_split = max([a_out[4], b_out[4]])
 
     # Patch the GPS into the output of the indexing methods.
     if patch_gps:
-        b_gps = sdb_gps_res[best_b]
+        b_gps = tdata.sdb_gps_res[best_b]
         gps_matches = find_anchor_matches(f'{file_prefix}_sdb.out', b_gps, isTarget=False, debug=debug)
         gps_resids = sorted([v[0] for v in gps_matches.values() if v[0] is not None])
         if debug:
