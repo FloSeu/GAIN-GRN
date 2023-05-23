@@ -1003,10 +1003,16 @@ def assign_indexing(gain_obj:object, file_prefix: str, gain_pdb: str, template_d
     if debug:
         print(f"[DEBUG] assign_indexing: The matched anchors of the target GAIN domain are:{target_a_centers = }\n\t{target_b_centers = }")
 
-    a_out = list(create_compact_indexing(gain_obj, 'a', target_a_centers, threshold=3, template_matches=a_template_matches,
-                                          template_extents=tdata.element_extents[best_a], hard_cut=hard_cut, prio=tdata.anchor_priority, debug=debug) ) # [dict, dict, dict, list]
-    b_out = list(create_compact_indexing(gain_obj, 'b', target_b_centers, threshold=1, template_matches=b_template_matches,
-                                         template_extents=tdata.element_extents[best_b], hard_cut=hard_cut, prio=tdata.anchor_priority, debug=debug) )
+    a_out = list(create_compact_indexing(gain_obj, 'a', target_a_centers, threshold=3, 
+                                         template_matches=a_template_matches, 
+                                         template_extents=tdata.element_extents[best_a], 
+                                         template_anchors=tdata.sda_centers[best_a],
+                                         hard_cut=hard_cut, prio=tdata.anchor_priority, debug=debug) )
+    b_out = list(create_compact_indexing(gain_obj, 'b', target_b_centers, threshold=1, 
+                                         template_matches=b_template_matches,
+                                         template_extents=tdata.element_extents[best_b], 
+                                         template_anchors=tdata.sdb_centers[best_b],
+                                         hard_cut=hard_cut, prio=tdata.anchor_priority, debug=debug) )
     highest_split = max([a_out[4], b_out[4]])
 
     # Patch the GPS into the output of the indexing methods.
@@ -1041,7 +1047,7 @@ def mp_assign_indexing(mp_args:list):
                                                                             patch_gps=mp_args[7])
     return [intervals, indexing_centers, indexing_dir, unindexed, params, mp_args[8]]
 
-def create_compact_indexing(gain_obj, subdomain:str, actual_anchors:dict, template_matches=None, template_extents=None, threshold=3, hard_cut=None, prio=None, debug=False):
+def create_compact_indexing(gain_obj, subdomain:str, actual_anchors:dict, template_matches=None, template_extents=None, template_anchors=None, threshold=3, hard_cut=None, prio=None, debug=False):
     ''' 
     Makes the indexing list, this is NOT automatically generated, since we do not need this for the base dataset
     Prints out the final list and writes it to file if outdir is specified
@@ -1261,32 +1267,71 @@ def create_compact_indexing(gain_obj, subdomain:str, actual_anchors:dict, templa
                  # Also write split stuff to the new dictionary
                 for entryidx, entry in enumerate(name_list): 
                     named_residue_dir[entry] = entryidx+segment[0]
-
-
-    #	unassigned_template_extents = {'S1': [64, 68]}
-    #	unindexed = [[86, 89], [118, 120]]
     
     # Second pass: Check for overlapping unindexed template elements:
     if template_extents is not None:
         # Filter only extents of unassigned elements
         unassigned_template_extents = {k:v for k,v in template_extents.items() if f"{k}.50" not in indexing_centers.keys()}
-        if debug: print(f"[DEBUG] create_compact_indexing :\n\t{unassigned_template_extents = }\n\t{unindexed = }")
+        if debug: 
+            print(f"[DEBUG] create_compact_indexing :\n\t{unassigned_template_extents = }\n\t{unindexed = }")
+
         if unassigned_template_extents:
+
             for sse in unindexed:
+
+                hasPseudocenter = False
+
                 for name, extent in unassigned_template_extents.items():
+
                     exmatch = [template_matches[res][0] for res in range(extent[0], extent[1]+1) if template_matches[res][0] is not None]
-                    if debug: print(f"\t{extent = }\t{exmatch = }")
+                    
+                    if debug: 
+                        print(f"\t{extent = }\t{exmatch = }\t{sse[0] = }\t{sse[1] = }")
+
                     if not exmatch:
                         continue
+
                     # check for overlap in the elements
-                    if (first_res <= exmatch[-1] and first_res >= exmatch[0]) or (last_res <= exmatch[-1] and last_res >= exmatch[0]): # the template element lies N- or C-terminal to the target
-                        element_anchor_res = actual_anchors[name][0] # This is the target residue corresponding to the anchor
+                    if sse[0] in exmatch or sse[1] in exmatch: # With overlap, either the last or first residue must be in the template element
+                        target_anchor_res = actual_anchors[name][0] # This is the target residue corresponding to the anchor
+                        # target_anchor_res is the template resdiue. We need the fitting target residue
+
+                        if target_anchor_res is None:
+                            hasPseudocenter = True
+                            print(f"[WARNING] create_compact_indexing:\n\tANCHOR MATCH NOT FOUND\n\t{actual_anchors = }")
+                            target_matches = {v[0]:k for k,v in template_matches.items() if v[0] is not None}
+                            offset_dict = {target_matches[res]-template_anchors[name]:res for res in exmatch}
+                            # Check whether N-terminal or C-terminal offsets. Should only be one of them 
+                            #   since the anchor_res is not directly included in exmatch
+                            # Find the longest segment for determining the pseudocenter
+                            if len([k for k in offset_dict.keys() if k < 0]) > len([k for k in offset_dict.keys() if k > 0]):
+                                n_terminal = True
+                                offset = max([k for k in offset_dict.keys() if k<0])
+                            else:
+                                n_terminal = False
+                                offset = min([k for k in offset_dict.keys() if k>0])
+                            target_anchor_res = offset_dict[offset]-offset # This is the pseudocenter - Even if it is unmatched, we pretend that it is.
+                            if debug:
+                                print(f"\tFound Pseudocenter @ {target_anchor_res}\n\tPlease validate manually.")
+
                         if debug:
-                            print(f"[DEBUG] create_compact_indexing : OFFSET CASE\n\t{first_res = } {last_res = } \n\t {extent = }\n\t{element_anchor_res = } {name = }")
-                        name_list, cast_values = create_name_list([first_res, last_res], element_anchor_res, name)
-                        nom_list, indexing_dir, indexing_centers = cast(nom_list, indexing_dir, indexing_centers, [first_res, last_res], name_list, cast_values)
+                            print(f"[DEBUG] create_compact_indexing : OFFSET CASE\n\t{first_res = } {last_res = } \n\t{extent = }")
+                            print(f"\t{actual_anchors = }\n\t{name = }")
+                            print(f"\t{target_anchor_res = }\t{target_anchor_res = }")
+
+                        name_list, cast_values = create_name_list(sse, target_anchor_res, name)
+
+                        #Pseudocenter truncation check. We only want the overlapping part, not something like bulges which have negilgible accuracy.
+                        if hasPseudocenter and n_terminal:
+                            name_list = [l for l in name_list if int(l.split(".")[-1])<50]
+                            cast_values[0][1] = cast_values[0][0]+len(name_list)-1
+                        if hasPseudocenter and not n_terminal:
+                            name_list = [l for l in name_list if int(l.split(".")[-1])>50]
+                            cast_values[0][0] = cast_values[0][1]-len(name_list)+1
+
+                        nom_list, indexing_dir, indexing_centers = cast(nom_list, indexing_dir, indexing_centers, sse, name_list, cast_values)
                         if debug: 
-                            print(f"[DEBUG] create_compact_indexing :\n\tFound offset Element {name} @ {element_anchor_res}\n\tTemplate: {extent}\n\t Target: {sse}\n\t{name_list = }\n\t{cast_values = }")
+                            print(f"[DEBUG] create_compact_indexing :\n\tFound offset Element {name} @ {target_anchor_res}\n\tTemplate: {extent}\n\t Target: {sse}\n\t{name_list = }\n\t{cast_values = }")
                         unassigned_template_extents.pop(name)
                         break
 
