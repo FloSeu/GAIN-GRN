@@ -936,7 +936,9 @@ def get_agpcr_type(name):
             return output(match)
     return 'X'
 
-def assign_indexing(gain_obj:object, file_prefix: str, gain_pdb: str, template_dir: str, gesamt_bin:str, template_json="tdata.json", hard_cut=None, debug=False, create_pdb=False, patch_gps=False):
+def assign_indexing(gain_obj:object, file_prefix: str, gain_pdb: str, template_dir: str, gesamt_bin:str, 
+                    template_json="tdata.json", outlier_cutoff=10.0,
+                    hard_cut=None, debug=False, create_pdb=False, patch_gps=False):
     if debug:
         print(f"[DEBUG] assign_indexing: {gain_obj.start = }\n\t{gain_obj.end = }\n\t{gain_obj.subdomain_boundary = }\n\t{gain_pdb = }")
     # Arbitrarily defined data for templates. Receptor type -> template ID
@@ -1047,7 +1049,9 @@ def mp_assign_indexing(mp_args:list):
                                                                             patch_gps=mp_args[7])
     return [intervals, indexing_centers, indexing_dir, unindexed, params, mp_args[8]]
 
-def create_compact_indexing(gain_obj, subdomain:str, actual_anchors:dict, template_matches=None, template_extents=None, template_anchors=None, threshold=3, hard_cut=None, prio=None, debug=False):
+def create_compact_indexing(gain_obj, subdomain:str, actual_anchors:dict, 
+                            template_matches=None, template_extents=None, template_anchors=None, 
+                            threshold=3,  outlier_cutoff=10.0, hard_cut=None, prio=None, debug=False):
     ''' 
     Makes the indexing list, this is NOT automatically generated, since we do not need this for the base dataset
     Prints out the final list and writes it to file if outdir is specified
@@ -1179,7 +1183,26 @@ def create_compact_indexing(gain_obj, subdomain:str, actual_anchors:dict, templa
 
         return nom_list, indexing_dir, indexing_centers
 
-    if debug: print(f"[DEBUG] create_compact_indexing: passed arguments:\n\t{gain_obj.name = }\n\t{subdomain = }\n\t{actual_anchors = }")
+    def truncate_segment(outliers:dict, anchor_res:int, sse:list, outlier_cutoff:float, debug=False):
+        if debug: 
+            print(f"[DEBUG] INVOKED create_compact_indexing.truncate_segment:\n\t{outliers = }\n\t{anchor_res = }\n\t{sse = }\n\t{outlier_cutoff = }") 
+        # Truncate the segment if outliers are present that exceed the float multiple of the outlier_cutoff
+        segment_outliers = [k for k,v in outliers.items() if k >= sse[0] and k <= sse[1] and v > outlier_cutoff]
+        if segment_outliers:
+            # As a fallback, use the sse boundaries as truncation.
+            # go C- and N-terminal from the anchor residue up until the first segment outlier. Truncate there.
+            n_terminus = max(segment_outliers[segment_outliers < anchor_res], default=sse[0]-1)
+            c_terminus = min(segment_outliers[segment_outliers > anchor_res], default = sse[1]+1)
+            if debug and n_terminus != sse[0]-1:
+                print(f"[DEBUG] create_compact_indexing.truncate_segment:\n\tTruncated segment N@{n_terminus} (prev {sse[0]})")
+            if debug and c_terminus != sse[1]+1:
+                print(f"[DEBUG] create_compact_indexing.truncate_segment:\n\tTruncated segment C@{n_terminus} (prev {sse[1]})")
+            return [n_terminus+1, c_terminus-1]
+        return sse
+
+    if debug: 
+        print(f"[DEBUG] create_compact_indexing: passed arguments:\n\t{gain_obj.name = }\n\t{subdomain = }\n\t{actual_anchors = }")
+    
     ### END OF FUNCTION BLOCK
     # Initialize Dictionaries
     indexing_dir = {}
@@ -1229,9 +1252,12 @@ def create_compact_indexing(gain_obj, subdomain:str, actual_anchors:dict, templa
             anchor_res = found_anchors[0]
             if debug: print(f"SINGLUAR ANCHOR FOUND: @ {anchor_res = }, {res2anchor[anchor_res]}")
             sse_name = res2anchor[anchor_res]
-            name_list, cast_values = create_name_list([first_res, last_res], anchor_res, sse_name)
+            tr_sse = truncate_segment(outliers=gain_obj.outliers,
+                                      anchor_res=anchor_res, 
+                                      sse=[first_res, last_res], outlier_cutoff=outlier_cutoff, debug=debug)
+            name_list, cast_values = create_name_list(tr_sse, anchor_res, sse_name)
             # name_list has the assignment for the SSE, cast_values contains the passed values for dict casting
-            nom_list, indexing_dir, indexing_centers = cast(nom_list, indexing_dir, indexing_centers, [first_res, last_res], name_list, cast_values)
+            nom_list, indexing_dir, indexing_centers = cast(nom_list, indexing_dir, indexing_centers, tr_sse, name_list, cast_values)
             # Also write split stuff to the new dictionary
             for entryidx, entry in enumerate(name_list): 
                 named_residue_dir[entry] = entryidx + first_res
@@ -1261,7 +1287,10 @@ def create_compact_indexing(gain_obj, subdomain:str, actual_anchors:dict, templa
                                                     hard_cut=hard_cut, 
                                                     debug=debug)
             for anchor_res, segment in split_segs.items():
-                name_list, cast_values = create_name_list(segment, anchor_res, res2anchor[anchor_res])
+                tr_segment = truncate_segment(outliers=gain_obj.outliers,
+                                      anchor_res=anchor_res, 
+                                      sse=[first_res, last_res], outlier_cutoff=outlier_cutoff, debug=debug)
+                name_list, cast_values = create_name_list(tr_segment, anchor_res, res2anchor[anchor_res])
                 # cast them also?
                 nom_list, indexing_dir, indexing_centers = cast(nom_list, indexing_dir, indexing_centers, segment, name_list, cast_values)
                  # Also write split stuff to the new dictionary

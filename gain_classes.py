@@ -1029,7 +1029,7 @@ class ExtractedGain:
             print(f"\n[DEBUG] gain_classes.GainDomain : Initializing GainDomain Object \n Name : {name}")
         # Initalize SSE Dict (LOC) and the SSE sequence (ASG) from STRIDE outfile.
         self.complete_sse_dict = sse_func.read_sse_loc(stride_file)
-        self.sse_sequence = sse_func.read_sse_asg(stride_file) # This is already including the helical and strand outliers.
+        self.sse_sequence, self.outliers = sse_func.read_sse_asg(stride_file) # This is already including the helical and strand outliers.
         # Try to detect GAIN-like order of SSE. Frist criterion is a C-terminal strand being present (= Stachel/TA)
 
         # Find the domain boundaries (this includes a check whether the sequence is in fact a GAIN)
