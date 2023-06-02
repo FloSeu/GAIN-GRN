@@ -1005,12 +1005,12 @@ def assign_indexing(gain_obj:object, file_prefix: str, gain_pdb: str, template_d
     if debug:
         print(f"[DEBUG] assign_indexing: The matched anchors of the target GAIN domain are:{target_a_centers = }\n\t{target_b_centers = }")
 
-    a_out = list(create_compact_indexing(gain_obj, 'a', target_a_centers, threshold=3, 
+    a_out = list(create_compact_indexing(gain_obj, 'a', target_a_centers, threshold=3, outlier_cutoff=outlier_cutoff,
                                          template_matches=a_template_matches, 
                                          template_extents=tdata.element_extents[best_a], 
                                          template_anchors=tdata.sda_centers[best_a],
                                          hard_cut=hard_cut, prio=tdata.anchor_priority, debug=debug) )
-    b_out = list(create_compact_indexing(gain_obj, 'b', target_b_centers, threshold=1, 
+    b_out = list(create_compact_indexing(gain_obj, 'b', target_b_centers, threshold=1, outlier_cutoff=outlier_cutoff,
                                          template_matches=b_template_matches,
                                          template_extents=tdata.element_extents[best_b], 
                                          template_anchors=tdata.sdb_centers[best_b],
@@ -1191,8 +1191,8 @@ def create_compact_indexing(gain_obj, subdomain:str, actual_anchors:dict,
         if segment_outliers:
             # As a fallback, use the sse boundaries as truncation.
             # go C- and N-terminal from the anchor residue up until the first segment outlier. Truncate there.
-            n_terminus = max(segment_outliers[segment_outliers < anchor_res], default=sse[0]-1)
-            c_terminus = min(segment_outliers[segment_outliers > anchor_res], default = sse[1]+1)
+            n_terminus = max([x for x in segment_outliers if x < anchor_res], default=sse[0]-1)
+            c_terminus = min([x for x in segment_outliers if x > anchor_res], default = sse[1]+1)
             if debug and n_terminus != sse[0]-1:
                 print(f"[DEBUG] create_compact_indexing.truncate_segment:\n\tTruncated segment N@{n_terminus} (prev {sse[0]})")
             if debug and c_terminus != sse[1]+1:
@@ -1289,7 +1289,7 @@ def create_compact_indexing(gain_obj, subdomain:str, actual_anchors:dict,
             for anchor_res, segment in split_segs.items():
                 tr_segment = truncate_segment(outliers=gain_obj.outliers,
                                       anchor_res=anchor_res, 
-                                      sse=[first_res, last_res], outlier_cutoff=outlier_cutoff, debug=debug)
+                                      sse=segment, outlier_cutoff=outlier_cutoff, debug=debug)
                 name_list, cast_values = create_name_list(tr_segment, anchor_res, res2anchor[anchor_res])
                 # cast them also?
                 nom_list, indexing_dir, indexing_centers = cast(nom_list, indexing_dir, indexing_centers, segment, name_list, cast_values)
