@@ -70,6 +70,10 @@ def read_sse_asg(file):
             outliers[int(items[3])] = float(items[10])
     return residue_sse, outliers
 
+def get_stride_seq(file):
+    seq_lines = [l for l in open(file).readlines() if l.startswith("SEQ")]
+    return list("".join([l.split()[2] for l in seq_lines]))
+
 def read_stride_angles(file, filter_letter=None):
     '''
     STRIDE output file parsing function, used for modified stride files contaning outliers as lowercase letters (H - h, G - g)

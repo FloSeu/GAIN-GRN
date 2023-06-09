@@ -463,14 +463,12 @@ class GainDomain:
 
         # Initalize SSE Dict (LOC) and the SSE sequence (ASG) from STRIDE outfiles.
         # Either from the standard folder (base dataset) or from an explicitly stated STRIDE file. (new GAIN)
-        if explicit_stride_file:
-            # Read directly from the explicitly stated STRIDE file. (new GAIN)
-            self.complete_sse_dict = sse_func.read_sse_loc(explicit_stride_file)
-            self.sse_sequence, self.outliers = sse_func.read_sse_asg(explicit_stride_file)
-        else:
-            # Find SSE data in corresponding STRIDE files (base data). Extract corresponding STRIDE files from the list and read SSE from that. (base dataset)
-            self.complete_sse_dict = sse_func.find_stride_file(self.name.replace(".fa","")) # previously: fasta_file.split("/")[-1][:-3]
-            self.sse_sequence, self.outliers = sse_func.read_sse_asg(self.name.replace(".fa",""))
+        if explicit_stride_file is None:
+            explicit_stride_file = self.name.replace(".fa","")
+
+        self.complete_sse_dict = sse_func.read_sse_loc(explicit_stride_file)
+        self.sse_sequence, self.outliers = sse_func.read_sse_asg(explicit_stride_file)
+
         # Try to detect GAIN-like order of SSE. Frist criterion is a C-terminal strand being present (= Stachel/TA)
         try: 
             self.end = self.complete_sse_dict['Strand'][-1][1]
@@ -496,6 +494,9 @@ class GainDomain:
             # For possible Fragment detection (i.e. Subdomain B only sequences), set start as the N-terminal res. of the first beta sheet    
             self.start = np.amin(np.array(self.complete_sse_dict["Strand"]))
         
+        if debug:
+            print(f"[DEBUG] gain_classes.GainDomain : COMPARING SEQS\n\t {sequence = }\n\t{sse_func.get_stride_seq(explicit_stride_file)[self.start:] = }")
+
         # Initialize residue indices as list, starting form zero, indexing EXISTING residues including "X" etc.
         self.index = list(range(0, self.end-self.start+1))
         # Initialize one-letter GAIN sequence as list
@@ -506,20 +507,21 @@ class GainDomain:
             # SANITY CHECK: There might occur a case where the GAIN domain is detected anew (i.e. when different parameters are used). There might be a truncation therefore.
             #               If that is the case, truncate the sequence N-terminally to that only ((self.end-self.start+1)) residues are included
             if len(sequence) > (self.end-self.start+1):
-                print(f"[DEBUG] gain_classes.GainDomain : {self.name}\nDETECTED ALTERED GAIN DOMAIN DETECTION. TRUNCATING @ RESIDUE : {len(sequence)-self.end+self.start}"
-                    f"\n\t{self.start = }\t{self.end = }\n\t{len(sequence) = }\n\t{self.end-self.start+1 = }")
-                self.sequence = np.asarray(list(sequence[len(sequence)-self.end+self.start:])) # Begin with the new first residue, end normally
-                print(f"[DEBUG]: gain_classes.GainDomain : \n\t {len(sequence) = }, {len(self.sequence) = }\n{sequence}\n{''.join(self.sequence)}")
+                self.sequence = np.asarray(list(sequence[len(sequence)-(self.end-self.start+1):])) # Begin with the new first residue, end normally
+                if debug:
+                    print(f"[DEBUG] gain_classes.GainDomain : {self.name}\nDETECTED ALTERED GAIN DOMAIN DETECTION. TRUNCATING @ RESIDUE : {len(sequence)-(self.end-self.start+1)}",
+                          f"\n\t{self.start = }\t{self.end = }\n\t{len(sequence) = }\n\t{self.end-self.start+1 = }",
+                          f"\n\t, {len(self.sequence) = }\n\t{sequence}\n\t{''.join(self.sequence)}"
+                          )
 
             elif len(sequence) < (self.end-self.start): 
                 # This is an edge case where the signal detection identifies a Sheet-segment in Subdomain A. Therefore, non-cons. GAIN domain.
-                print(f"[DEBUG] gain_classes.GainDomain : {self.name}\nSEQUENCE LENGTH SHORTER THAN DETECTED GAIN BOUNDARIES.!\n"
+                print(f"[WARNING] gain_classes.GainDomain : {self.name}\nSEQUENCE LENGTH SHORTER THAN DETECTED GAIN BOUNDARIES.!\n"
                     f"IT WILL BE DECLARED INVALID.\n{len(sequence) = }\n{self.end-self.start = }")
                 self.sse_dict = sse_func.cut_sse_dict(self.start, self.end, self.complete_sse_dict)
-                print(f"[DEBUG] gain_classes.GainDomain.__init__():\n {self.subdomain_boundary = }, {type(self.subdomain_boundary) = }")
                 if self.subdomain_boundary is None :
                     self.subdomain_boundary = 0
-                self.plot_helicality(savename=f"{self.name}_SEQSHORT_SKIP.png")
+                #self.plot_helicality(savename=f"{self.name}_SEQSHORT_SKIP.png")
                 self.isValid = False
                 self.hasSubdomain = False
                 return
