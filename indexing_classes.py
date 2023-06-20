@@ -141,7 +141,6 @@ class StAlIndexing:
             data_matrix[row, header_dict["Accession"]] = name_parts[0].split("_")[0]
             data_matrix[row, header_dict["Species"]] = name_parts[-1].replace(".","")
             data_matrix[row, header_dict["type"]] = self.receptor_types[row]
-            #offset = self.offsets[row]
             fa_offset = self.fasta_offsets[row]
 
             # Find GPS residues.
