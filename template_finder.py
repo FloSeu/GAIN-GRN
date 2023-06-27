@@ -1292,7 +1292,7 @@ def create_compact_indexing(gain_obj, subdomain:str, actual_anchors:dict,
                                       sse=segment, outlier_cutoff=outlier_cutoff, debug=debug)
                 name_list, cast_values = create_name_list(tr_segment, anchor_res, res2anchor[anchor_res])
                 # cast them also?
-                nom_list, indexing_dir, indexing_centers = cast(nom_list, indexing_dir, indexing_centers, segment, name_list, cast_values)
+                nom_list, indexing_dir, indexing_centers = cast(nom_list, indexing_dir, indexing_centers, tr_segment, name_list, cast_values)
                  # Also write split stuff to the new dictionary
                 for entryidx, entry in enumerate(name_list): 
                     named_residue_dir[entry] = entryidx+segment[0]

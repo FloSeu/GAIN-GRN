@@ -89,7 +89,7 @@ class StAlIndexing:
         self.accessions = [gain.name.split("-")[0].split("_")[0] for gain in list_of_gain_obj]
         self.sequences = ["".join(gain.sequence) for gain in list_of_gain_obj]
         self.total_keys = sorted(total_keys)
-        self.center_keys = [f"H{i}.50" for i in range(1,7)]+[f"S{i}.50" for i in range(1,14)]
+        self.center_keys = [f"H{i}.50" for i in range(1,7)]+[f"S{i}.50" for i in range(1,15)]
         self.unindexed = all_unindexed
         self.a_templates = [params["sda_template"] for params in all_params]
         self.b_templates = [params["sdb_template"] for params in all_params]
