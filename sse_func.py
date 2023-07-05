@@ -517,15 +517,16 @@ def count_domain_sses(domain_start, domain_end, tuple_list=None, spacing=1, mini
     while i < n_elements-1:
         if debug: print(f"{i = } {n_elements = }\n\t{up_edges = }\n\t{down_edges = }")
         unordered_length = up_edges[i+1] - down_edges[i]
-        if unordered_length <= spacing:
-            #breaks = list(range(down_edges[i], up_edges[i+1]))
-            #break_residues.append(breaks)
+
+        if unordered_length <= spacing:  
+            if debug:
+                print("[DEBUG] sse_func.count_domain_sses: Found break within specified spacing. Fusing two elements", up_edges[i:i+2], down_edges[i:i+2])
             del up_edges[i+1]
             del down_edges[i]
             n_elements -= 1
             continue
         # If this is a unique element, append empty breaks.
-        #break_residues.append([])
+
         i += 1
     
     # With the cleaned up lists of up_edges and down_edges, get all elements satisfying minium_length and within boundaries.
@@ -904,13 +905,13 @@ def get_subdomain_sse(sse_dict:dict, subdomain_boundary:int, start:int, end:int,
 
     if stride_outlier_mode == False:    
         alpha = count_domain_sses(start,helix_upperbound, helices, spacing=1, minimum_length=3, debug=debug) # PARSING BY SSE DICTIONARY
-        beta = count_domain_sses(sheet_lowerbound, end, sheets, spacing=1, minimum_length=2, debug=debug) # 
+        beta = count_domain_sses(sheet_lowerbound, end, sheets, spacing=0, minimum_length=2, debug=debug) # 
     
     if stride_outlier_mode == True:
         # This version should be generall the case for GAIN domains evaluated in GainCollection.__init__()
         hel_bool, she_bool = sse_sequence2bools(residue_sse)
         alpha = count_domain_sses(start, helix_upperbound, helices, spacing=1, minimum_length=3, sse_bool=hel_bool, debug=debug) # PARSING BY SSE-SEQUENCE
-        beta = count_domain_sses(sheet_lowerbound, end, sheets, spacing=1, minimum_length=2, sse_bool=she_bool, debug=debug) # 
+        beta = count_domain_sses(sheet_lowerbound, end, sheets, spacing=0, minimum_length=2, sse_bool=she_bool, debug=debug) # 
     if debug:
         print(f"[DEBUG] sse_func.get_subdomain_sse : \n\t{stride_outlier_mode = }\n\t {alpha = } \n\t {beta = }")
     return alpha, beta

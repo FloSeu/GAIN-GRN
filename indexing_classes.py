@@ -99,8 +99,9 @@ class StAlIndexing:
         print("Total of keys found in the dictionaries:\n", self.total_keys, self.center_keys)
         print("First entry", self.indexing_dirs[0], self.center_dirs[0])
     
-    def construct_data_matrix(self, unique_sse=False):
+    def construct_data_matrix(self, overwrite_gps=True, unique_sse=False):
         # the unique_sse boolean specifies if unique element identifiers should be kept (i.e. "H1.E1" instead of "H1")
+        # overwrite_gps specifies whether GPS entries will be unique - they will be removed from other entries i.e S13 / S14
                  
         #header = "Receptor,Accession," + ",".join(self.total_keys) + ",".join(self.center_keys)
         header_dict = {}
@@ -144,11 +145,14 @@ class StAlIndexing:
             fa_offset = self.fasta_offsets[row]
 
             # Find GPS residues.
+            gps_res = []
             gps_col = {"GPS-2":4,"GPS-1":5, "GPS+1":6}
             for key in self.indexing_dirs[row].keys():
                 if "GPS" in key:
                     if self.indexing_dirs[row][key] is not None:
                         data_matrix[row, gps_col[key]] = str(self.indexing_dirs[row][key]+fa_offset)
+                        if overwrite_gps:
+                            gps_res.append(self.indexing_dirs[row][key]+fa_offset)
                     else:
                         data_matrix[row, gps_col[key]] = " "
             # Write start and end residues with offset to dataframe
@@ -160,6 +164,12 @@ class StAlIndexing:
                 # A "." denotes individual elements, that means they will NOT be in the data_matrix unless $unique_sse is specified.
                 if "." in key and not unique_sse:
                     key = key.split(".")[0] # "H1.E1" --> "H1"
+                # Overwrite_gps: If any Start of end coincides with GPS residues, incr/decrement this value so that GPS-residues are not included
+                if overwrite_gps:
+                    if sse[0] in gps_res:
+                        sse[0] = sse[0]+1
+                    if sse[1] in gps_res:
+                        sse[1] = sse[1]-1
                 data_matrix[row, header_dict[f"{key}.start"]] = str(sse[0])
                 data_matrix[row, header_dict[f"{key}.end"]] = str(sse[1])
             # Write center residues with offset to dataframe
