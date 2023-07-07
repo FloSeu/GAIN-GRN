@@ -66,7 +66,7 @@ def read_sse_asg(file):
         # 3 is the PDB index, 4 is the enumerating index, this is crucial for avoiding offsets, always take 3
         residue_sse[int(items[3])] = items[5]
         # if there is missing keys, just label them "X", since these are residues skipped by AlphaFold2 (i.e. "X")
-        if items[10] != "~~~~":
+        if len(items) >= 11 and items[10] != "~~~~":
             outliers[int(items[3])] = float(items[10])
     return residue_sse, outliers
 
@@ -1513,17 +1513,18 @@ def detect_outliers(stride_file, outfile, sigmas=2):
 
         adj_angles = [a+360 if a<0 else a for a in angles]
 
-        if abs(adj_angles[0]-phi_lim[0]) > sigmas*phi_lim[1] or abs(adj_angles[1]-psi_lim[0]) > sigmas*psi_lim[1]:
+        deviations = [abs(adj_angles[0]-phi_lim[0])/phi_lim[1], abs(adj_angles[1]-psi_lim[0])/psi_lim[1]]
+        if deviations[0] > sigmas or deviations[1] > sigmas:
             # print("outlier found.", l, sep="\n")
-            k = l[:24]+l[24].lower()+l[25:]
+            k = l[:24]+l[24].lower()+l[25:76]+"{:>4.2f}\n".format(max(deviations))
             newdata.append(k)        
             continue
         
-        newdata.append(l)
+        newdata.append(l[:76]+"~~~~\n")
     
     with open(outfile, 'w') as out:
         out.write("".join(newdata))
-    print(f"Modified STRIDE file {stride_file} into {outfile} to include outliers.")
+    print(f"Modified STRIDE file {stride_file} into {outfile} to include outliers and the last column items[10] col 77-80 (1-indexed)")
 
 def grab_sse_bb(stride_file):
     data = [l for l in open(stride_file).readlines() if l.startswith("ASG")]

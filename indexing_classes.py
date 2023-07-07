@@ -36,10 +36,10 @@ class StAlIndexing:
             pool = mp.Pool(n_threads)
             # Construct an iterable with the arguments for the wrapper function mp_assign_indexing
             mp_arglist = [ 
-                            [gain, f"{prefix}_{gain_idx}", find_pdb(gain.name, pdb_dir), template_dir, debug, False, {"S2":7,"S6":3,"H5":3}, True, gain_idx] 
+                            [gain, f"{prefix}_{gain_idx}", find_pdb(gain.name, pdb_dir), template_dir, debug, False, {"S2":7,"S6":3,"H5":3}, True, gain_idx, template_json, gesamt_bin] 
                             for gain_idx, gain in enumerate(list_of_gain_obj)
                          ]
-            
+            print("Completed composing arg_list for assigning multithreaded indexing.", mp_arglist[:5],"\n", mp_arglist[-5:])
             for result in pool.imap_unordered(tf.mp_assign_indexing, mp_arglist):
                 # this is each instance of the above function return with the result[4] being the index
                 all_intervals[result[5]] = result[0]

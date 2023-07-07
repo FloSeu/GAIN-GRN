@@ -948,6 +948,7 @@ def assign_indexing(gain_obj:object, file_prefix: str, gain_pdb: str, template_d
     sda_templates = {}
     sdb_templates = {}
     pdbs = glob.glob(f"{template_dir}/*pdb")
+    #print(f"[TESTING] tf.assign_indexing : Detected {len(pdbs)} PDB files in target directory {template_dir}")
     for pdb in pdbs:
         p_name = pdb.split("/")[-1].split("_")[0]
         if "b" in p_name:
@@ -969,7 +970,7 @@ def assign_indexing(gain_obj:object, file_prefix: str, gain_pdb: str, template_d
     # If the type is unknown, get the best matching templates by performing RMSD after alignment via GESAMT
     if agpcr_type not in tdata.type_2_sda_template.keys():
         if agpcr_type[0] not in tdata.type_2_sda_template.keys():
-            best_a, best_b = find_best_templates(gain_obj, gain_pdb, sda_templates, sdb_templates, debug=debug)
+            best_a, best_b = find_best_templates(gain_obj, gesamt_bin, gain_pdb, sda_templates, sdb_templates, debug=debug)
             if debug:
                 print(f"[DEBUG] assign_indexing: running template search with unknown receptor.\n{best_a = } {best_b = }")
         else:
@@ -1039,14 +1040,31 @@ def assign_indexing(gain_obj:object, file_prefix: str, gain_pdb: str, template_d
 
 def mp_assign_indexing(mp_args:list):
     # wrapper function deciphering the list of args into the function call, for mp we need the args as an iterable.
-    intervals, indexing_centers, indexing_dir, unindexed, params = assign_indexing(gain_obj=mp_args[0], 
-                                                                            file_prefix=mp_args[1], 
-                                                                            gain_pdb=mp_args[2], 
-                                                                            template_dir=mp_args[3], 
-                                                                            debug=mp_args[4], 
-                                                                            create_pdb=mp_args[5],
-                                                                            hard_cut=mp_args[6],
-                                                                            patch_gps=mp_args[7])
+    #  gain_obj:object, 
+    #  file_prefix: str, 
+    #  gain_pdb: str, 
+    #  template_dir: str, 
+    #  gesamt_bin:str, 
+    #  template_json="tdata.json", 
+    #  outlier_cutoff=10.0,
+    #  hard_cut=None, 
+    #  debug=False, 
+    #  create_pdb=False, 
+    #  patch_gps=False
+    #   0       1                       2                           3           4       5       6                      7       8        9               10
+    #[gain, f"{prefix}_{gain_idx}", find_pdb(gain.name, pdb_dir), template_dir, debug, False, {"S2":7,"S6":3,"H5":3}, True, gain_idx, template_json, gesamt_bin] 
+    intervals, indexing_centers, indexing_dir, unindexed, params = assign_indexing(
+        gain_obj=mp_args[0], 
+        file_prefix=mp_args[1], 
+        gain_pdb=mp_args[2], 
+        template_dir=mp_args[3], 
+        gesamt_bin=mp_args[10],
+        template_json=mp_args[9],
+        debug=mp_args[4], 
+        create_pdb=mp_args[5],
+        hard_cut=mp_args[6],
+        patch_gps=mp_args[7]
+        )
     return [intervals, indexing_centers, indexing_dir, unindexed, params, mp_args[8]]
 
 def create_compact_indexing(gain_obj, subdomain:str, actual_anchors:dict, 
