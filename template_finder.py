@@ -637,7 +637,7 @@ def create_subdomain_indexing(gain_obj, subdomain, actual_anchors, threshold=3, 
                 for namidx, entry in enumerate(name_list): 
                     named_residue_dir[entry] = namidx+sse_adj[0]
         else: # If there is an unadressed SSE with length 3 or more, then add this to unindexed.
-                if sse[1]-sse[0] > threshold:
+                if sse[1]-sse[0] >= threshold:
                     if debug: print(f"[DEBUG] GainDomain.create_indexing : No anchor found! \n {first_res = } \ns{last_res = }")
                     unindexed.append(first_res)
     # Patch the GPS into the nom_list
@@ -865,7 +865,7 @@ def calculate_anchor_distances(template_anchor_coords, mobile_pdb, mobile_anchor
 
     return dict(zip(mobile_anchors.keys(), matched_anchors)), dict(zip(mobile_anchors.keys(), min_dists))
 
-def find_best_templates(unknown_gain_obj, gesamt_bin, unknown_gain_pdb: str, sda_templates: dict, sdb_templates: dict, debug=False):
+def find_best_templates(unknown_gain_obj, gesamt_bin, unknown_gain_pdb: str, sda_templates: dict, sdb_templates: dict, debug=False, template_mode='extent'):
     # Put in an unknown GAIN domain object and its corresponding PDB path to match against the set of templates.
     # This will then give the best match for subdomain A and subdomain B based on GESAMT pairwise alignment
     pdb_start, sda_boundary, sdb_boundary, pdb_end = get_pdb_extents(unknown_gain_pdb, unknown_gain_obj.subdomain_boundary)
@@ -904,10 +904,29 @@ def find_best_templates(unknown_gain_obj, gesamt_bin, unknown_gain_pdb: str, sda
             val = float(match.group(0)[-5:])
         b_names.append(sdb_id)
         b_rmsds.append(val)
-        
-    best_sdb = b_names[b_rmsds.index(min(b_rmsds))]
+    
+
+    if template_mode == 'extent':
+        if debug:
+            print("Here are the RMSD values for the EXTENT mode of Subdomain B templates:")
+        for i, name in enumerate(b_names):
+            print(f"{name}:{b_rmsds[i]}")
+            if name == "G4b":
+                if b_rmsds[i] < 3.0 : 
+                    if debug:
+                        print("Selecting G4b template.")
+                    best_sdb = "G4b"
+                else:
+                    if debug:
+                        print("G4b match quality is too low for maximalist assignment. Switching to lowest-RMSD template.")
+                    template_mode = 'rmsd'
+
+    if template_mode == 'rmsd':
+        best_sdb = b_names[b_rmsds.index(min(b_rmsds))]
+    
     if debug:
         print(f"[DEBUG] find_best_templates: RESULT\n\t{best_sda}\n\t{best_sdb}")
+
     return best_sda, best_sdb
 
 def get_agpcr_type(name):
@@ -938,9 +957,9 @@ def get_agpcr_type(name):
 
 def assign_indexing(gain_obj:object, file_prefix: str, gain_pdb: str, template_dir: str, gesamt_bin:str, 
                     template_json="tdata.json", outlier_cutoff=10.0,
-                    hard_cut=None, debug=False, create_pdb=False, patch_gps=False):
+                    hard_cut=None, debug=False, create_pdb=False, patch_gps=False, template_mode='extent'):
     if debug:
-        print(f"[DEBUG] assign_indexing: {gain_obj.start = }\n\t{gain_obj.end = }\n\t{gain_obj.subdomain_boundary = }\n\t{gain_pdb = }")
+        print(f"[DEBUG] assign_indexing: {gain_obj.start = }\n\t{gain_obj.end = }\n\t{gain_obj.subdomain_boundary = }\n\t{gain_pdb = }\n\t{template_mode = }")
     # Arbitrarily defined data for templates. Receptor type -> template ID
     # Load the data associated with the templates from the JSON file.
     tdata = SimpleNamespace(**json.load(open(template_json)))
@@ -970,7 +989,7 @@ def assign_indexing(gain_obj:object, file_prefix: str, gain_pdb: str, template_d
     # If the type is unknown, get the best matching templates by performing RMSD after alignment via GESAMT
     if agpcr_type not in tdata.type_2_sda_template.keys():
         if agpcr_type[0] not in tdata.type_2_sda_template.keys():
-            best_a, best_b = find_best_templates(gain_obj, gesamt_bin, gain_pdb, sda_templates, sdb_templates, debug=debug)
+            best_a, best_b = find_best_templates(gain_obj, gesamt_bin, gain_pdb, sda_templates, sdb_templates, template_mode=template_mode, debug=debug)
             if debug:
                 print(f"[DEBUG] assign_indexing: running template search with unknown receptor.\n{best_a = } {best_b = }")
         else:
@@ -1313,7 +1332,7 @@ def create_compact_indexing(gain_obj, subdomain:str, actual_anchors:dict,
                 nom_list, indexing_dir, indexing_centers = cast(nom_list, indexing_dir, indexing_centers, tr_segment, name_list, cast_values)
                  # Also write split stuff to the new dictionary
                 for entryidx, entry in enumerate(name_list): 
-                    named_residue_dir[entry] = entryidx+segment[0]
+                    named_residue_dir[entry] = entryidx+tr_segment[0]
     
     # Second pass: Check for overlapping unindexed template elements:
     if template_extents is not None:
@@ -1324,7 +1343,7 @@ def create_compact_indexing(gain_obj, subdomain:str, actual_anchors:dict,
 
         if unassigned_template_extents:
 
-            for sse in unindexed:
+            for sse in unindexed[::-1]:
 
                 hasPseudocenter = False
 
@@ -1368,7 +1387,7 @@ def create_compact_indexing(gain_obj, subdomain:str, actual_anchors:dict,
 
                         name_list, cast_values = create_name_list(sse, target_anchor_res, name)
 
-                        #Pseudocenter truncation check. We only want the overlapping part, not something like bulges which have negilgible accuracy.
+                        # Pseudocenter truncation check. We only want the overlapping part, not something like bulges which have negilgible accuracy.
                         if hasPseudocenter and n_terminal:
                             name_list = [l for l in name_list if int(l.split(".")[-1])<50]
                             cast_values[0][1] = cast_values[0][0]+len(name_list)-1
@@ -1376,7 +1395,12 @@ def create_compact_indexing(gain_obj, subdomain:str, actual_anchors:dict,
                             name_list = [l for l in name_list if int(l.split(".")[-1])>50]
                             cast_values[0][0] = cast_values[0][1]-len(name_list)+1
 
+                        # Update with new elements
                         nom_list, indexing_dir, indexing_centers = cast(nom_list, indexing_dir, indexing_centers, sse, name_list, cast_values)
+
+                        for entryidx, entry in enumerate(name_list): 
+                            named_residue_dir[entry] = entryidx+sse[0]
+
                         if debug: 
                             print(f"[DEBUG] create_compact_indexing :\n\tFound offset Element {name} @ {target_anchor_res}\n\tTemplate: {extent}\n\t Target: {sse}\n\t{name_list = }\n\t{cast_values = }")
                         unassigned_template_extents.pop(name)
