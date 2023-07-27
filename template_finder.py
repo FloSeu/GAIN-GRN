@@ -1279,7 +1279,7 @@ def create_compact_indexing(gain_obj, subdomain:str, actual_anchors:dict,
             # If no anchor is found, move to $unindexed and check for overlap of unindexed template elements in a second pass.
             # Check of overlapping non-indexed template elements. This should be done AFTER all normal matches are there
 
-            if sse[1]-sse[0] > threshold:
+            if sse[1]-sse[0] >= threshold:
                 if debug: 
                     print(f"[DEBUG] create_compact_indexing : No anchor found! \n {[first_res, last_res] = }")
                 unindexed.append([first_res, last_res])
