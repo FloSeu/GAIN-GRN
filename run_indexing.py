@@ -60,11 +60,11 @@ if __name__ == '__main__':
     # DEBUG:
     #for i in range(20):
         #print(valid_collection.collection[i].name, fasta_offsets[i], valid_collection.collection[i].start, sep="\n")
-    print(glob.glob('../r3_template_pdbs/*pdb'))
+    print(glob.glob('../r4_template_pdbs/*pdb'))
     stal_indexing = StAlIndexing(valid_collection.collection, 
                                 prefix="/home/hildilab/projects/agpcr_nom/test_stal_indexing/t_class", 
                                 pdb_dir='/home/hildilab/projects/agpcr_nom/all_pdbs/',  
-                                template_dir='/home/hildilab/projects/agpcr_nom/r3_template_pdbs', 
+                                template_dir='/home/hildilab/projects/agpcr_nom/r4_template_pdbs', 
                                 fasta_offsets=fasta_offsets,
                                 n_threads=20,
                                 template_json='template_data.json',
@@ -73,11 +73,11 @@ if __name__ == '__main__':
                                 )
 
     header, matrix = stal_indexing.construct_data_matrix(overwrite_gps=True, unique_sse=False)
-    stal_indexing.data2csv(header, matrix, "../stal_indexing.14o.csv")
+    stal_indexing.data2csv(header, matrix, "../stal_indexing.r4.csv")
     header, matrix = stal_indexing.construct_data_matrix(overwrite_gps=True, unique_sse=True)
-    stal_indexing.data2csv(header, matrix, "../stal_indexing.14ou.csv")
+    stal_indexing.data2csv(header, matrix, "../stal_indexing.r4u.csv")
 
-    with open("../stal_indexing.p.pkl","wb") as save:
+    with open("../stal_indexing.r4.pkl","wb") as save:
         pickle.dump(stal_indexing, save)
 
-    print("Done creating and saving stal_indexing.p.pkl")
+    print("Done creating and saving stal_indexing.r4.pkl")
