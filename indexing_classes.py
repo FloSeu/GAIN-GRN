@@ -64,7 +64,8 @@ class StAlIndexing:
                                                                                         debug=debug, 
                                                                                         create_pdb=False,
                                                                                         hard_cut={"S2":7,"S6":3,"H5":3},
-                                                                                        patch_gps=True)
+                                                                                        patch_gps=True
+                                                                                        )
 
                 all_centers[gain_index] = indexing_centers
                 all_indexing_dir[gain_index] = indexing_dir
