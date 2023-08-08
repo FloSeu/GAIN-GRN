@@ -296,7 +296,7 @@ def gain_set_to_template(list_of_gains, index_list, template_anchors, gesamt_fol
         if debug: print(f"[DEBUG]: gain_set_to_template {sse = }")
 
         for element in sse:
-            if element[1]-element[0] < threshold: 
+            if element[1]-element[0] < threshold-1: 
                 continue
             if debug: 
                 print(f"[DEBUG]: gain_set_to_template {element = } {gain.start = } with range\n\t{range(element[0]+gain.start-1, element[1]+gain.start+2) = }",
@@ -1279,7 +1279,7 @@ def create_compact_indexing(gain_obj, subdomain:str, actual_anchors:dict,
             # If no anchor is found, move to $unindexed and check for overlap of unindexed template elements in a second pass.
             # Check of overlapping non-indexed template elements. This should be done AFTER all normal matches are there
 
-            if sse[1]-sse[0] >= threshold:
+            if sse[1]-sse[0] >= threshold-1:
                 if debug: 
                     print(f"[DEBUG] create_compact_indexing : No anchor found! \n {[first_res, last_res] = }")
                 unindexed.append([first_res, last_res])
