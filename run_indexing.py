@@ -49,7 +49,7 @@ def find_offsets(fasta_file, accessions, sequences):
     return offsets
 
 if __name__ == '__main__':
-    valid_collection = pd.read_pickle("../valid_collection.p.pkl")
+    valid_collection = pd.read_pickle("../valid_collection.q.pkl")
 
     all_accessions = [gain.name.split("-")[0].split("_")[0] for gain in valid_collection.collection]
     all_sequences = ["".join(gain.sequence) for gain in valid_collection.collection]
