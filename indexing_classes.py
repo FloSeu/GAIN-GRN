@@ -7,7 +7,7 @@ import multiprocessing as mp
 
 class StAlIndexing:
     def __init__(self, list_of_gain_obj, prefix:str, pdb_dir:str,  template_dir:str, template_json:str, gesamt_bin:str, 
-                 n_threads=1, outlier_cutoff=10.0, fasta_offsets=None, debug=False):
+                 n_threads=1, outlier_cutoff=10.0, fasta_offsets=None, pseudocenters=None, debug=False):
 
         def find_pdb(name, pdb_folder):
             identifier = name.split("-")[0]
@@ -63,6 +63,7 @@ class StAlIndexing:
                                                                                         outlier_cutoff=outlier_cutoff,
                                                                                         debug=debug, 
                                                                                         create_pdb=False,
+                                                                                        pseudocenters=pseudocenters,
                                                                                         hard_cut={"S2":7,"S6":3,"H5":3},
                                                                                         patch_gps=True
                                                                                         )

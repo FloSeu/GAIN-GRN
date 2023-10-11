@@ -957,7 +957,7 @@ def get_agpcr_type(name):
 
 def assign_indexing(gain_obj:object, file_prefix: str, gain_pdb: str, template_dir: str, gesamt_bin:str, 
                     template_json="tdata.json", outlier_cutoff=10.0,
-                    hard_cut=None, debug=False, create_pdb=False, patch_gps=False, template_mode='extent'):
+                    hard_cut=None, debug=False, create_pdb=False, patch_gps=False, pseudocenters=None, template_mode='extent'):
     if debug:
         print(f"[DEBUG] assign_indexing: {gain_obj.start = }\n\t{gain_obj.end = }\n\t{gain_obj.subdomain_boundary = }\n\t{gain_pdb = }\n\t{template_mode = }")
     # Arbitrarily defined data for templates. Receptor type -> template ID
@@ -1029,12 +1029,14 @@ def assign_indexing(gain_obj:object, file_prefix: str, gain_pdb: str, template_d
                                          template_matches=a_template_matches, 
                                          template_extents=tdata.element_extents[best_a], 
                                          template_anchors=tdata.sda_centers[best_a],
-                                         hard_cut=hard_cut, prio=tdata.anchor_priority, debug=debug) )
+                                         hard_cut=hard_cut, prio=tdata.anchor_priority, pseudocenters=pseudocenters, 
+                                         debug=debug) )
     b_out = list(create_compact_indexing(gain_obj, 'b', target_b_centers, threshold=1, outlier_cutoff=outlier_cutoff,
                                          template_matches=b_template_matches,
                                          template_extents=tdata.element_extents[best_b], 
                                          template_anchors=tdata.sdb_centers[best_b],
-                                         hard_cut=hard_cut, prio=tdata.anchor_priority, debug=debug) )
+                                         hard_cut=hard_cut, prio=tdata.anchor_priority, pseudocenters=pseudocenters,
+                                         debug=debug) )
     highest_split = max([a_out[4], b_out[4]])
 
     # Patch the GPS into the output of the indexing methods.
@@ -1088,7 +1090,7 @@ def mp_assign_indexing(mp_args:list):
 
 def create_compact_indexing(gain_obj, subdomain:str, actual_anchors:dict, 
                             template_matches=None, template_extents=None, template_anchors=None, 
-                            threshold=3,  outlier_cutoff=10.0, hard_cut=None, prio=None, debug=False):
+                            threshold=3,  outlier_cutoff=10.0, hard_cut=None, prio=None, pseudocenters=None, debug=False):
     ''' 
     Makes the indexing list, this is NOT automatically generated, since we do not need this for the base dataset
     Prints out the final list and writes it to file if outdir is specified
@@ -1378,8 +1380,10 @@ def create_compact_indexing(gain_obj, subdomain:str, actual_anchors:dict,
                                 offset = min([k for k in offset_dict.keys() if k>0])
                             target_anchor_res = offset_dict[offset]-offset # This is the pseudocenter - Even if it is unmatched, we pretend that it is.
                             if debug:
-                                print(f"\tFound Pseudocenter @ {target_anchor_res}\n\tPlease validate manually.")
-
+                                print(f"\tFound Pseudocenter @ {target_anchor_res}:{name}\n\tPlease validate manually.")
+                            # Write to File if specified. This is for Pseudocenter statistics.
+                            if pseudocenters is not None:
+                                open(pseudocenters, "a").write(f"{gain_obj.name},{target_anchor_res},{name}\n")
                         if debug:
                             print(f"[DEBUG] create_compact_indexing : OFFSET CASE\n\t{first_res = } {last_res = } \n\t{extent = }")
                             print(f"\t{actual_anchors = }\n\t{name = }")

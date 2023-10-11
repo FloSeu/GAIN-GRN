@@ -14,6 +14,9 @@ class GainCollection:
     A collection of GainDomain objects with collected Anchors.
     This is used for generating the information needed to hardcode the indexing info
 
+    no_alignment : bool
+        specifies whether the collection shall be instantiated without any alignment data default = False
+
     Attributes
     ----------
     collection : list
@@ -52,10 +55,10 @@ class GainCollection:
         Constructs an anchor and anchor_occupation array to use for constructing the numbering scheme
       '''
     def __init__(self,
-                alignment_file, 
-                aln_cutoff,
-                quality,
-                gps_index,
+                alignment_file=None, 
+                aln_cutoff=None,
+                quality=None,
+                gps_index=None,
                 alignment_dict=None,
                 stride_files=None,
                 sequence_files=None,
@@ -65,6 +68,7 @@ class GainCollection:
                 coil_weight=0,
                 is_truncated=False,
                 stride_outlier_mode=False,
+                no_alignment=False,
                 debug=False): 
         '''
         Constructs the GainCollection objects by initializing one GainDomain instance per given sequence
@@ -112,6 +116,8 @@ class GainCollection:
         stride_outlier_modes : bool, optional
             indicates of the STRIDE files contan "h" and "g" to indicate outlier SSE residues used to refine the SSE detection
 
+        no_alignment : bool
+            Specifies whether the collection shall be instantiated without any alignment data default = False
         Returns
         ----------
         None
@@ -150,54 +156,70 @@ class GainCollection:
             if len(explicit_stride) > 1:
                 print(f"WARNING: AMBIGUITY in STRIDE files: {explicit_stride}") 
             #print("DEBUG:", name)
-            newGain = GainDomain(alignment_file = alignment_file, 
-                                  aln_cutoff = aln_cutoff,
-                                  quality = quality,
-                                  gps_index = gps_index,
-                                  alignment_dict = alignment_dict,
-                                  name = name,
-                                  sequence = sequence,
-                                  subdomain_bracket_size = subdomain_bracket_size,
-                                  domain_threshold = domain_threshold,
-                                  coil_weight = coil_weight,
-                                  explicit_stride_file = explicit_stride[0],
-                                  without_anchors = False,
-                                  is_truncated = is_truncated,
-                                  stride_outlier_mode=stride_outlier_mode,
-                                  debug=debug
-                                  )
+            if not no_alignment:
+                newGain = GainDomain(alignment_file = alignment_file, 
+                                    aln_cutoff = aln_cutoff,
+                                    quality = quality,
+                                    gps_index = gps_index,
+                                    alignment_dict = alignment_dict,
+                                    name = name,
+                                    sequence = sequence,
+                                    subdomain_bracket_size = subdomain_bracket_size,
+                                    domain_threshold = domain_threshold,
+                                    coil_weight = coil_weight,
+                                    explicit_stride_file = explicit_stride[0],
+                                    without_anchors = False,
+                                    is_truncated = is_truncated,
+                                    stride_outlier_mode=stride_outlier_mode,
+                                    debug=debug
+                                    )
+                # Check if the object is an actual GAIN domain
+                if newGain.isValid:
+                    if not newGain.GPS.isConsensus:
+                        newGain.GPS.info()
+                    # process the Anchors and add them to the anchor-histogram
+                    for j in newGain.Anchors.alignment_indices:
+                        anchor_hist[j] += 1
+                    
+                    self.collection[i] = newGain
+                    # additionally, get the subdomain boundary value and store it.
+                    subdomain_boundaries.append(newGain.alignment_indices[newGain.subdomain_boundary-newGain.start])
+                else:
+                    invalid_count += 1
 
-            # Check if the object is an actual GAIN domain
-            if newGain.isValid:
-                if not newGain.GPS.isConsensus:
-                    newGain.GPS.info()
-                # process the Anchors and add them to the anchor-histogram
-                for j in newGain.Anchors.alignment_indices:
-                    anchor_hist[j] += 1
-                
+            if no_alignment:
+                newGain = GainDomainNoAln(
+                                    name = name,
+                                    sequence = sequence,
+                                    subdomain_bracket_size = subdomain_bracket_size,
+                                    domain_threshold = domain_threshold,
+                                    coil_weight = coil_weight,
+                                    explicit_stride_file = explicit_stride[0],
+                                    without_anchors = True,
+                                    is_truncated = is_truncated,
+                                    stride_outlier_mode=stride_outlier_mode,
+                                    debug=debug)
+
                 self.collection[i] = newGain
-                # additionally, get the subdomain boundary value and store it.
-                subdomain_boundaries.append(newGain.alignment_indices[newGain.subdomain_boundary-newGain.start])
-            else:
-                invalid_count += 1
         
         print(f"Completed collection with {invalid_count} invalid structures.")
         # Kick out empty items from the Collection
         self.collection = self.collection[self.collection.astype(bool)] 
         #print(f"DEBUG: {anchor_hist = }, {np.nonzero(anchor_hist)}")
 
+        if not no_alignment:
         # Get the leftmost anchor, which denotes the absolute first "ordered" structure in the alignment
-        left_limit = np.where(anchor_hist!=0)[0][0]
+            left_limit = np.where(anchor_hist!=0)[0][0]
 
-        self.anchor_hist = anchor_hist 
-        self.leftmost = left_limit
+            self.anchor_hist = anchor_hist 
+            self.leftmost = left_limit
 
-        # Initialize detecting the overall subdomain boundary.
+            # Initialize detecting the overall subdomain boundary.
 
-        self.alignment_subdomain_boundary = round(np.average(subdomain_boundaries))
-        self.alignment_quality = quality
-        self.alignment_length = aln_cutoff
-        self.gps_minus_one_column = gps_index
+            self.alignment_subdomain_boundary = round(np.average(subdomain_boundaries))
+            self.alignment_quality = quality
+            self.alignment_length = aln_cutoff
+            self.gps_minus_one_column = gps_index
 
     def print_gps(self):
         '''
@@ -952,7 +974,7 @@ class GPS:
         print(f"Info about this GPS:\n{self.isConsensus = }\n{self.indices = }\n"
             f"{self.sequence = }\n{self.alignment_indices = }\n{self.residue_numbers = }")
         
-class ExtractedGain:
+class GainDomainNoAln:
     '''
     Instantiates the data from stride and the alignment, checking if the object is a GAIN domain
     and if so, creating analysis and establishing the indexing based on the results
@@ -979,69 +1001,135 @@ class ExtractedGain:
         List of residue indices belonging to the GAIN domain
     sequence : numpy array
         List of amino acid one letter codes of the GAIN domain
-    alignment_indices : list
-        List of alignment indices corresponding to each GAIN domain residue
     sse_sequence : list
         List of all indices of residues with their corresponding Helix or Strand assignment
     stride_outlier_mode : bool, optional
             indicates of the STRIDE files contan "h" and "g" to indicate outlier SSE residues used to refine the SSE detection
+
+    Objects
+    ----------
+    GPS : object
+        Instance of the GPS class containing info about the GPS
+    Anchors : object
+        Instance of the Anchors class containing info about the Anchors
+
+    Methods
+    ----------
+    plot_profile(self, outdir=None):
+        Plots a profile of the Protein showing details about GAIN domain detection
+
+    plot_helicality(self, bracket_size=30, domain_threshold=20, coil_weight=0, savename=None):
+        Plots a signal profile used for detection of subdomain A and the GAIN domain boundaries
+
+    write_sequence(self, savename):
+        Thin wrapper for writing the name and sequence to a fasta file
+
+    write_gain_pdb(self, outfile=None)
+        Writes a truncated PDB file to specified outfile
     '''
-    def __init__(self,
-                 start, 
-                 subdomain_boundary, 
-                 end,
-                 name,
-                 sequence,
-                 stride_file,
-                 is_truncated=True,
-                 stride_outlier_mode=True,
+    def __init__(self, 
+                 fasta_file=None,
+                 name=None,
+                 sequence=None,
+                 subdomain_bracket_size=20,
+                 domain_threshold=20,
+                 coil_weight=0,
+                 explicit_stride_file=None,
+                 without_anchors=False,
+                 is_truncated=False,
+                 stride_outlier_mode=False,
                  debug=False):   
         ''' Initilalizes the GainDomain object and checks for GainDomain criteria to be fulfilled
         Parameters
         ----------
-        start :         int, required
-            residue number of the GAIN domain start previously obtained
-        subdomain_boundary: int, required
-            residue number of the subdomain boundary previously obtained
-        end   :         int, required
-            residue number of the GAIN domain end previously obtained
-        name :          str, required
+
+        fasta_file :    str, optional
+            The fasta file containing the sequence to be analyzed. Based on that, the STRIDE file 
+            from the base dataset will be parsed if not explicitly stated. Either this or name+sequence have to be specifed
+        
+        name :          str, optional
             The name of the sequence. Enables reading from a compliled sequences object instead of individual files.
+
         sequence :      str, optional
             The one-letter coded sequence as string. Enables reading from a compliled sequences object instead of individual files.
-        stride_file: str, required
+
+        subdomain_bracket_size: int, optional
+            Smoothing window size for the signal convolve function. Default = 20.
+
+        domain_threshold:   int, optional
+            Minimum size of a helical segment to be considered candidate for Subdomain A of GAIN domain. Default = 20.
+
+        coil_weight:        float, optional
+            Weight assigned to unordered residues during Subdomain detection. Enables decay of helical signal
+            default = 0. Recommended values < +0.2 for decay
+
+        explicit_stride_file: str, optional
             Explicit existing STRIDE file for new GAIN domains, when not present in the base dataset. Will manually parse this
             default = None
+
         is_truncated :      bool, optional
             indicates if the sequence is already truncated to only contain the GAIN domain
-        stride_outlier_mode:        bool, optional; default=Tue
-            indicated if outliers will be parsed from the STRIDE file (lower-case letters as assigned SSE)
+        
+        truncation_map :     np.array(boolean), optional
+            For the workflow.py - if a sequence is added and there is truncation present, this map indicates the truncated residues.
+
+        aln_start_res :     int, optional
+            if already predetermined for mafft --add sequences, also pass the start column wtihin the alignment.
+        
         debug:              bool, optional
             specify if debug messages should be printed
-
         Returns
         ----------
         None
         '''
         #Initialize self.name for finding the correspondent alignment row!
-        self.name = name
-        self.start, self.subdomain_boundary, self.end = start, subdomain_boundary, end
-        self.isValid, self.hasSubdomain = True, True # Unless specified otherwise.
+        if name is not None:
+            self.name = name
+        else:
+            if fasta_file:
+                self.name = fasta_file.split("/")[-1] # This is how the name would be in the pre-calculated alignment
+            else:
+                print("No name specified. Exiting")
+                return None
         if debug:
             print(f"\n[DEBUG] gain_classes.GainDomain : Initializing GainDomain Object \n Name : {name}")
-        # Initalize SSE Dict (LOC) and the SSE sequence (ASG) from STRIDE outfile.
-        self.complete_sse_dict = sse_func.read_sse_loc(stride_file)
-        self.sse_sequence, self.outliers = sse_func.read_sse_asg(stride_file) # This is already including the helical and strand outliers.
+
+        # Initalize SSE Dict (LOC) and the SSE sequence (ASG) from STRIDE outfiles.
+        # Either from the standard folder (base dataset) or from an explicitly stated STRIDE file. (new GAIN)
+        if explicit_stride_file is None:
+            explicit_stride_file = self.name.replace(".fa","")
+
+        self.complete_sse_dict = sse_func.read_sse_loc(explicit_stride_file)
+        self.sse_sequence, self.outliers = sse_func.read_sse_asg(explicit_stride_file)
+
         # Try to detect GAIN-like order of SSE. Frist criterion is a C-terminal strand being present (= Stachel/TA)
+        try: 
+            self.end = self.complete_sse_dict['Strand'][-1][1]
+            self.isValid = True
+        except: 
+            print("No Strands detected. This is not a GAIN domain.")
+            self.isValid = False
+            return      
 
         # Find the domain boundaries (this includes a check whether the sequence is in fact a GAIN)
         # Will return (None, None) if checks fail. 
+        self.start, self.subdomain_boundary = sse_func.find_boundaries(self.complete_sse_dict, 
+                                                                       self.end, 
+                                                                       bracket_size=subdomain_bracket_size, 
+                                                                       domain_threshold=domain_threshold,
+                                                                       coil_weight=coil_weight)
+        if (self.start is not None):
+            self.hasSubdomain = True
 
         if self.start == None:
-            print("No Subdomain boundaries detected. Possible Fragment found. Pretending it is only Subdomain B.")
+            print("No Subdomain boundaries detected. Possible Fragment found.")
+            self.hasSubdomain = False
             # For possible Fragment detection (i.e. Subdomain B only sequences), set start as the N-terminal res. of the first beta sheet    
             self.start = np.amin(np.array(self.complete_sse_dict["Strand"]))
         
+        if debug:
+            print(f"[DEBUG] gain_classes.GainDomain : COMPARING SEQS\n\t {sequence = }\n\t{sse_func.get_stride_seq(explicit_stride_file)[self.start:] = }")
+
         # Initialize residue indices as list, starting form zero, indexing EXISTING residues including "X" etc.
         self.index = list(range(0, self.end-self.start+1))
         # Initialize one-letter GAIN sequence as list
@@ -1052,29 +1140,35 @@ class ExtractedGain:
             # SANITY CHECK: There might occur a case where the GAIN domain is detected anew (i.e. when different parameters are used). There might be a truncation therefore.
             #               If that is the case, truncate the sequence N-terminally to that only ((self.end-self.start+1)) residues are included
             if len(sequence) > (self.end-self.start+1):
-                print(f"[DEBUG] gain_classes.GainDomain : {self.name}\nDETECTED ALTERED GAIN DOMAIN DETECTION. TRUNCATING @ RESIDUE : {len(sequence)-self.end+self.start}"
-                    f"\n\t{self.start = }\t{self.end = }\n\t{len(sequence) = }\n\t{self.end-self.start+1 = }")
-                self.sequence = np.asarray(list(sequence[len(sequence)-self.end+self.start:])) # Begin with the new first residue, end normally
-                print(f"[DEBUG]: gain_classes.GainDomain : \n\t {len(sequence) = }, {len(self.sequence) = }\n{sequence}\n{''.join(self.sequence)}")
+                self.sequence = np.asarray(list(sequence[len(sequence)-(self.end-self.start+1):])) # Begin with the new first residue, end normally
+                if debug:
+                    print(f"[DEBUG] gain_classes.GainDomain : {self.name}\nDETECTED ALTERED GAIN DOMAIN DETECTION. TRUNCATING @ RESIDUE : {len(sequence)-(self.end-self.start+1)}",
+                          f"\n\t{self.start = }\t{self.end = }\n\t{len(sequence) = }\n\t{self.end-self.start+1 = }",
+                          f"\n\t, {len(self.sequence) = }\n\t{sequence}\n\t{''.join(self.sequence)}"
+                          )
 
             elif len(sequence) < (self.end-self.start): 
                 # This is an edge case where the signal detection identifies a Sheet-segment in Subdomain A. Therefore, non-cons. GAIN domain.
-                print(f"[DEBUG] gain_classes.GainDomain : {self.name}\nSEQUENCE LENGTH SHORTER THAN DETECTED GAIN BOUNDARIES.!\n"
+                print(f"[WARNING] gain_classes.GainDomain : {self.name}\nSEQUENCE LENGTH SHORTER THAN DETECTED GAIN BOUNDARIES.!\n"
                     f"IT WILL BE DECLARED INVALID.\n{len(sequence) = }\n{self.end-self.start = }")
                 self.sse_dict = sse_func.cut_sse_dict(self.start, self.end, self.complete_sse_dict)
-                print(f"[DEBUG] gain_classes.GainDomain.__init__():\n {self.subdomain_boundary = }, {type(self.subdomain_boundary) = }")
                 if self.subdomain_boundary is None :
                     self.subdomain_boundary = 0
+                #self.plot_helicality(savename=f"{self.name}_SEQSHORT_SKIP.png")
                 self.isValid = False
                 self.hasSubdomain = False
                 return
 
             else:
                 self.sequence = np.asarray(list(sequence))
+        if sequence and not is_truncated: 
+            self.sequence = np.asarray(list(sequence[self.start:self.end+1]))
+        if fasta_file and not is_truncated:
+            self.sequence = np.asarray(list(sse_func.read_seq(fasta_file)))[self.start:self.end+1]
 
         # Cut down the SSE dictionary down to the GAIN only
         self.sse_dict = sse_func.cut_sse_dict(self.start, self.end, self.complete_sse_dict)
-        
+
         if self.hasSubdomain == True:
             # enumeration + evaluation of subdomain SSE composition
             alpha, beta = sse_func.get_subdomain_sse(self.sse_dict, 
@@ -1088,8 +1182,178 @@ class ExtractedGain:
             # offset correction. Since the PDB residues are one-indexed, we convert them to python zero-indexed. This is obsolete when the start is already at 0.
             diff = self.start
             if diff < 0: 
-                raise IndexError("NOTE: GainDomain start residue < 0. This should not be the case.")
+                raise IndexError("[ERROR] START OF THE GAIN DOMAIN IS SMALLER THAN ZERO. This should not be the case.")
+            
             self.sda_helices = np.subtract(alpha, diff)
-            if debug:
-                print(f"[DEBUG] gain_classes.GainDomain : {alpha = } ,{self.sda_helices = }")
             self.sdb_sheets = np.subtract(beta, diff)
+        
+        if not without_anchors:
+            # Gather the respective anchors for this GainDomain if SDA Helices are present.
+            if not hasattr(self, 'sda_helices'):
+                if self.subdomain_boundary is None :
+                    self.subdomain_boundary = 0
+                self.plot_helicality(savename=f"{self.name}_NO_HELICES.png")
+                print(f"[WARNING] gain_classes.__init__(): NO SDA HELICES DETECTED\n{self.name}")
+                self.isValid = False 
+                self.hasSubdomain = False
+                return
+            self.Anchors = Anchors(self)
+
+        if without_anchors:
+            self.Anchors = None 
+    
+    #### GainDomain METHODS
+    def plot_profile(self, outdir=None, savename=None, noshow=True):
+        '''
+        Plots the SSE profile and quality profile of the GainDomain. Can be saved into {outdir}
+        Also denotes whether this object is a GAIN domain or not.
+
+        outdir : str, optional
+            Output directory if the Figure should be saved
+
+        Returns None
+        '''
+        fig = plt.figure(figsize=[8,2])
+        fig.set_facecolor("w")
+        plt.title(self.name)
+
+        # The bottom part has the SSE profile plotted as horizontal lines colored to SSE type
+        if "Strand" in self.sse_dict.keys():
+            for sheet in self.sse_dict["Strand"]:
+                plt.hlines(0,sheet[0],sheet[1], linewidth=5, color='darkorange')
+                
+        if "AlphaHelix" in self.sse_dict.keys():
+            for helix in self.sse_dict["AlphaHelix"]:
+                plt.hlines(0,helix[0],helix[1], linewidth=5, color='dodgerblue')
+
+        if "310Helix" in self.sse_dict.keys():
+            for helix in self.sse_dict["310Helix"]:
+                plt.hlines(0,helix[0],helix[1], linewidth=5, color='navy')
+
+        if self.subdomain_boundary:
+            plt.vlines(self.subdomain_boundary,0,500, color='black', linewidth=2)
+        plt.xlabel("Index")
+        plt.ylabel("Conservation Quality")
+
+        # store or show   
+        if savename is None and outdir: 
+            savename = "%s/%s.png"%(outdir,self.name[:-3])
+            savename = savename.replace(":","") # PATCH FOR RARE SPECIAL CHARACTER ":"
+        if savename is not None:
+            plt.savefig(savename, bbox_inches='tight',dpi=150)
+        if not noshow:
+            plt.show()
+        plt.figure().clear()
+        plt.close()
+        plt.cla()
+        plt.clf()
+    
+    def plot_helicality(self, bracket_size=30, coil_weight=0, savename=None, debug=False, noshow=True):
+        '''
+        Plots the SSE profile used for detecting the subdomains. All parameters should be consistent with the ones
+        used during actual detection of the GAIN domain
+        
+        Parameters
+        ----------
+        bracket_size :      int, optional
+            Bracket size for convolving the SSE signal, default = 30
+        domain_threshold :  int, optional
+            Threshold for a helical block to be considered candidate for Subdomain A, default = 20
+        coil_weight :       int, optional
+            Coil Weight for decaying helical blocks. Should be 0 (no decay) or below + 0.2, default = 0
+        savename :          str, optional
+            Output file name for saving, default = None
+
+        Returns
+        ----------
+        None
+        '''
+        # Check if the dictionary even contains AlphaHelices, and also check for 310Helix
+        helices = []
+        sheets = []
+        if 'AlphaHelix' not in self.sse_dict.keys() or 'Strand' not in self.sse_dict.keys():
+            print("This is not a GAIN domain.")
+            return None, None
+        [helices.append(h) for h in self.sse_dict['AlphaHelix']]
+        if '310Helix' in self.sse_dict.keys(): 
+            [helices.append(h) for h in self.sse_dict['310Helix']]
+        [sheets.append(s) for s in self.sse_dict['Strand']]
+
+        # Create a scoring matrix similar to the one for finding the Subdomains, 
+        # helices are assigned -1, sheets +1
+        # Coil_weight emulates the value used in the finding algorithm aswell, replicating the exact profile.
+        scored_seq = np.full([self.end], fill_value=coil_weight)
+        for element_tuple in helices:
+            scored_seq[element_tuple[0]:element_tuple[1]] = -1
+        for element_tuple in sheets:
+            scored_seq[element_tuple[0]:element_tuple[1]] = 1
+        
+        # Smooth the SSE signal with np.convolve 
+        signal = np.convolve(scored_seq, np.ones([bracket_size]), mode='same')
+        if debug:
+            print(signal)
+        boundaries = sse_func.detect_signchange(signal, exclude_zero=True)
+
+        # Initialize Figure
+        fig = plt.figure(figsize=[8,2])
+        fig.set_facecolor("w")
+        plt.ylabel("SSE signal")
+        plt.xlabel("index")
+        plt.plot([val*10 for val in scored_seq], color="gray")
+        plt.plot(signal[:self.end],color='dodgerblue')
+        plt.hlines(0,0,self.end)
+        plt.fill_between(range(self.end), 
+                         signal[:self.end], 
+                         np.zeros([self.end]),
+                        color='dodgerblue',
+                        alpha=0.2)
+        if boundaries is not None:
+            for b in boundaries:
+                plt.vlines(b,-20,20, color='gray', linestyle='dashed', linewidth=1)
+        plt.vlines(self.subdomain_boundary, -30, 30, color='black', linewidth=1.5)
+        if savename != None:
+            plt.savefig(savename, dpi=300, bbox_inches='tight')
+        if not noshow:
+            plt.show()
+        plt.figure().clear()
+        plt.close()
+        plt.cla()
+        plt.clf()
+        
+    def write_sequence(self, savename):
+        '''
+        Super thin wrapper for calling write2fasta as a GainDomain inherent function
+            savename : str, required
+                Name of the Output file
+        Returns None
+        '''
+        sse_func.write2fasta(self.sequence, self.name, savename)
+
+    def write_gain_pdb(self, pdb_file, outfile=None):
+
+        with open(pdb_file, "r") as initial_pdb:
+            data = initial_pdb.readlines()
+
+        atom_index = 1                      # For re-numbering the atoms
+
+        with open(outfile, "w") as trunc_pdb:
+            for line in data:
+                # parse the residue indices of the ATOM entries, only including ones within start and end interval
+                if line.startswith("ATOM"):
+
+                    res_id = int(line[22:26])
+
+                    if self.start > res_id: # Cut all residues before the start resId
+                        continue
+                    if self.end < res_id:   # Cut all residues after the end resId
+                        continue
+
+                    trunc_pdb.write(f"{line[:6]}{str(atom_index).rjust(5)}{line[11:]}")
+                    atom_index += 1
+
+                elif line.startswith("TER "): # Patch to eliminate the last atom index from the default modeling
+                    trunc_pdb.write("TER\n")
+                else:
+                    trunc_pdb.write(line)
+
+        print(f"[DEBUG]: gain_classes.GainDomain.write_gain_pdb : Created PDB with {atom_index-1} atom entries in {outfile}.")
