@@ -640,15 +640,7 @@ def create_subdomain_indexing(gain_obj, subdomain, actual_anchors, threshold=3, 
                 if sse[1]-sse[0] >= threshold:
                     if debug: print(f"[DEBUG] GainDomain.create_indexing : No anchor found! \n {first_res = } \ns{last_res = }")
                     unindexed.append(first_res)
-    # Patch the GPS into the nom_list
-    """        labels = ["GPS-2","GPS-1","GPS+1"]
-    for i, residue in enumerate(gain_obj.GPS.residue_numbers[:3]):
-        #print(residue)
-        nom_list[residue] = labels[i]
-        indexing_dir["GPS"] = gain_obj.GPS.residue_numbers
-        # Also cast this to the general indexing dictionary
-        named_residue_dir[labels[i]] = gain_obj.GPS.residue_numbers[i]"""
-           
+    # [NOTE] GPS patching moved to central function -> assign_indexing      
     return indexing_dir, indexing_centers, named_residue_dir, unindexed
 
 def construct_structural_alignment(template_gain_domain, list_of_gain_obj, gain_indices, gesamt_folder=str, outfile=None, debug=False):
@@ -865,7 +857,7 @@ def calculate_anchor_distances(template_anchor_coords, mobile_pdb, mobile_anchor
 
     return dict(zip(mobile_anchors.keys(), matched_anchors)), dict(zip(mobile_anchors.keys(), min_dists))
 
-def find_best_templates(unknown_gain_obj, gesamt_bin, unknown_gain_pdb: str, sda_templates: dict, sdb_templates: dict, debug=False, template_mode='extent'):
+def find_best_templates(unknown_gain_obj, gesamt_bin, unknown_gain_pdb: str, sda_templates: dict, sdb_templates: dict, debug=False, template_mode='extent', sda_mode='rmsd'):
     # Put in an unknown GAIN domain object and its corresponding PDB path to match against the set of templates.
     # This will then give the best match for subdomain A and subdomain B based on GESAMT pairwise alignment
     pdb_start, sda_boundary, sdb_boundary, pdb_end = get_pdb_extents(unknown_gain_pdb, unknown_gain_obj.subdomain_boundary)
@@ -876,12 +868,14 @@ def find_best_templates(unknown_gain_obj, gesamt_bin, unknown_gain_pdb: str, sda
     b_rmsds = []
     a_names = []
     b_names = []
+    a_qvals = []
 
     for sda_id, sda_pdb in sda_templates.items():
         cmd_string = f'{gesamt_bin} {sda_pdb} {unknown_gain_pdb} -s A/{pdb_start}-{sda_boundary}'
         output = run_command(cmd_string)
         # Read the RMSD value from the ouptut string returned by the function. No files are created here.
         match = re.search(r"RMSD\W+\:\W+[0-9]+\.[0-9]+",output)
+        qmatch = re.search(r"Q-score\W+\:\W+[0-9]+\.[0-9]+",output)
         if match is None:
             print("[WARNING]: NO RMSD FOUND:", cmd_string, output)
             val = 100.0 # penalty for non-matching template
@@ -889,8 +883,14 @@ def find_best_templates(unknown_gain_obj, gesamt_bin, unknown_gain_pdb: str, sda
             val = float(match.group(0)[-5:])
         a_names.append(sda_id)
         a_rmsds.append(val)
+        a_qvals.append(float(qmatch.group(0)[-5:]))
 
-    best_sda = a_names[a_rmsds.index(min(a_rmsds))]
+    if debug:
+        print(f"HERE ARE THE RMSD VALUES FOR SUBDOAMIN A TEMPLATES:\n\t{a_names}\n\t{a_rmsds}\n\t{a_qvals}")
+    if sda_mode == 'rmsd':
+        best_sda = a_names[a_rmsds.index(min(a_rmsds))]
+    if sda_mode == 'q':
+        best_sda = a_names[a_qvals.index(max(a_qvals))]
 
     for sdb_id, sdb_pdb in sdb_templates.items():
         cmd_string = f'{gesamt_bin} {sdb_pdb} {unknown_gain_pdb} -s A/{sdb_boundary}-{pdb_end}'
@@ -957,7 +957,8 @@ def get_agpcr_type(name):
 
 def assign_indexing(gain_obj:object, file_prefix: str, gain_pdb: str, template_dir: str, gesamt_bin:str, 
                     template_json="tdata.json", outlier_cutoff=10.0,
-                    hard_cut=None, debug=False, create_pdb=False, patch_gps=False, pseudocenters=None, template_mode='extent'):
+                    hard_cut=None, debug=False, create_pdb=False, patch_gps=False, pseudocenters=None, 
+                    template_mode='extent', sda_mode='rmsd'):
     if debug:
         print(f"[DEBUG] assign_indexing: {gain_obj.start = }\n\t{gain_obj.end = }\n\t{gain_obj.subdomain_boundary = }\n\t{gain_pdb = }\n\t{template_mode = }")
     # Arbitrarily defined data for templates. Receptor type -> template ID
@@ -989,7 +990,7 @@ def assign_indexing(gain_obj:object, file_prefix: str, gain_pdb: str, template_d
     # If the type is unknown, get the best matching templates by performing RMSD after alignment via GESAMT
     if agpcr_type not in tdata.type_2_sda_template.keys():
         if agpcr_type[0] not in tdata.type_2_sda_template.keys():
-            best_a, best_b = find_best_templates(gain_obj, gesamt_bin, gain_pdb, sda_templates, sdb_templates, template_mode=template_mode, debug=debug)
+            best_a, best_b = find_best_templates(gain_obj, gesamt_bin, gain_pdb, sda_templates, sdb_templates, template_mode=template_mode, debug=debug, sda_mode=sda_mode)
             if debug:
                 print(f"[DEBUG] assign_indexing: running template search with unknown receptor.\n{best_a = } {best_b = }")
         else:
@@ -1049,7 +1050,7 @@ def assign_indexing(gain_obj:object, file_prefix: str, gain_pdb: str, template_d
         # Append the GPS into the subdomain B output
         if gps_resids:
             b_out[0]["GPS"] = [gps_resids[0], gps_resids[-1]] # GPS interval
-            b_out[1]["GPS"] = gps_matches["GPS-1"][0] # The residue number of the GPS-1
+            b_out[1]["GPS"] = gps_matches["GPS.-1"][0] # The residue number of the GPS-1
             for label, v in gps_matches.items():
                 b_out[2][label] = v[0]
         else:
@@ -1176,7 +1177,7 @@ def create_compact_indexing(gain_obj, subdomain:str, actual_anchors:dict,
                     print(f"[WARNING] No breakers, but Glycine detected in the target segment. Using this for splitting:\n\t{segment_sequence = }\n\t{sse[0]}-{sse[1]} | G@{breakers[0]}")
                 else:
                     split_mode = 4
-                    # Third line of splitting: Check if there is a hard cut provided in hard_cut for one of the anchors (S6?). If so, break it after n residues,
+                    # Third line of splitting: Check if there is a hard cut provided in hard_cut for one of the anchors (S7?). If so, break it after n residues,
                     # keep all residues in the segment (the breaker is added to the C-terminal segment)
                     if hard_cut is not None and res2anchor[n_anchor] in hard_cut.keys():
                         hard_cut_flag = True
@@ -1350,11 +1351,16 @@ def create_compact_indexing(gain_obj, subdomain:str, actual_anchors:dict,
                 hasPseudocenter = False
 
                 for name, extent in unassigned_template_extents.items():
-
+                    
+                    if debug:
+                        print(f"EXTENT OF UNMATCHED SEGMENT: {extent[0] = }, {extent[1] = }\n{template_matches = }\n{len(template_matches) = }")
+                    
                     exmatch = [template_matches[res][0] for res in range(extent[0], extent[1]+1) if template_matches[res][0] is not None]
                     
                     if debug: 
-                        print(f"\t{extent = }\t{exmatch = }\t{sse[0] = }\t{sse[1] = }")
+                        if exmatch is not None:
+                            print(f"{exmatch = }\t")
+                        print(f"\t{extent = }\t{sse[0] = }\t{sse[1] = }")
 
                     if not exmatch:
                         continue
