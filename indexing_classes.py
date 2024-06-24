@@ -148,7 +148,7 @@ class StAlIndexing:
 
             # Find GPS residues.
             gps_res = []
-            gps_col = {"GPS-2":4,"GPS-1":5, "GPS+1":6}
+            gps_col = {"GPS.-2":4,"GPS.-1":5, "GPS.+1":6}
             for key in self.indexing_dirs[row].keys():
                 if "GPS" in key:
                     if self.indexing_dirs[row][key] is not None:
@@ -260,7 +260,7 @@ class GPCRDBIndexing:
         
         header_list = ["Receptor", "Accession"] + self.total_keys + self.center_keys
         #header = "Receptor,Accession," + ",".join(self.total_keys) + ",".join(self.center_keys)
-        new_header = ["Receptor", "Accession", "GPS-2", "GPS-1", "GPS+1"]
+        new_header = ["Receptor", "Accession", "GPS.-2", "GPS.-1", "GPS.+1"]
         for j in self.center_keys:
             new_header.append(f"{j[:-3]}.start")
             new_header.append(f"{j[:-3]}.anchor")

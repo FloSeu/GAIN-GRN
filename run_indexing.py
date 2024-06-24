@@ -8,7 +8,7 @@ import pandas as pd
 import numpy as np
 import sse_func
 # LOCAL IMPORTS
-os.chdir("/home/hildilab/projects/agpcr_nom/repo")
+os.chdir("/home/hildilab/agpcr_nom/repo")
 #os.getcwd()
 
 from indexing_classes import StAlIndexing
@@ -49,35 +49,33 @@ def find_offsets(fasta_file, accessions, sequences):
     return offsets
 
 if __name__ == '__main__':
-    valid_collection = pd.read_pickle("../valid_collection.q.pkl")
-
-    all_accessions = [gain.name.split("-")[0].split("_")[0] for gain in valid_collection.collection]
-    all_sequences = ["".join(gain.sequence) for gain in valid_collection.collection]
-
-    fasta_offsets = find_offsets("/home/hildilab/projects/GPS_massif/uniprot_query/agpcr_celsr.fasta", 
-                                    all_accessions, 
-                                    all_sequences)
+    valid_collection = pd.read_pickle("../pkd_collection.pkl")
+    #all_accessions = [gain.name.split("-")[0].split("_")[0] for gain in valid_collection.collection]
+    #all_sequences = ["".join(gain.sequence) for gain in valid_collection.collection]
+    #fasta_offsets = find_offsets("/home/hildilab/projects/GPS_massif/uniprot_query/agpcr_celsr.fasta", 
+    #                                all_accessions, 
+    #                                all_sequences)
     # DEBUG:
     #for i in range(20):
         #print(valid_collection.collection[i].name, fasta_offsets[i], valid_collection.collection[i].start, sep="\n")
     print(glob.glob('../r4_template_pdbs/*pdb'))
     stal_indexing = StAlIndexing(valid_collection.collection, 
-                                prefix="/home/hildilab/projects/agpcr_nom/test_stal_indexing/t_class", 
-                                pdb_dir='/home/hildilab/projects/agpcr_nom/all_pdbs/',  
-                                template_dir='/home/hildilab/projects/agpcr_nom/r4_template_pdbs', 
-                                fasta_offsets=fasta_offsets,
-                                n_threads=20,
+                                prefix="/home/hildilab/agpcr_nom/test_stal_indexing/pkds_", 
+                                pdb_dir='/home/hildilab/agpcr_nom/pkd_pdbs/',  
+                                template_dir='/home/hildilab/agpcr_nom/r4_template_pdbs', 
+                                #fasta_offsets=fasta_offsets,
+                                n_threads=4,
                                 template_json='template_data.json',
-                                gesamt_bin="/home/hildilab/lib/xtal/ccp4-8.0/bin/gesamt",
+                                gesamt_bin="/home/hildilab/lib/xtal/ccp4-8.0/ccp4-8.0/bin/gesamt",
                                 debug=False
-                                )
+                               )
 
     header, matrix = stal_indexing.construct_data_matrix(overwrite_gps=True, unique_sse=False)
-    stal_indexing.data2csv(header, matrix, "../stal_indexing.r4.csv")
-    header, matrix = stal_indexing.construct_data_matrix(overwrite_gps=True, unique_sse=True)
-    stal_indexing.data2csv(header, matrix, "../stal_indexing.r4u.csv")
+    stal_indexing.data2csv(header, matrix, "../pkd_indexing.csv")
+    #header, matrix = stal_indexing.construct_data_matrix(overwrite_gps=True, unique_sse=True)
+    #stal_indexing.data2csv(header, matrix, "../pkd_indexing.csv")
 
-    with open("../stal_indexing.r4.pkl","wb") as save:
+    with open("../pkd_indexing.pkl","wb") as save:
         pickle.dump(stal_indexing, save)
 
-    print("Done creating and saving stal_indexing.r4.pkl")
+    print("Done creating and saving pkd_indexing.pkl")

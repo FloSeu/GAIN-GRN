@@ -1028,6 +1028,9 @@ class GainDomainNoAln:
         Writes a truncated PDB file to specified outfile
     '''
     def __init__(self, 
+                 start=None, 
+                 subdomain_boundary=None, 
+                 end=None,
                  fasta_file=None,
                  name=None,
                  sequence=None,
@@ -1102,6 +1105,8 @@ class GainDomainNoAln:
         self.complete_sse_dict = sse_func.read_sse_loc(explicit_stride_file)
         self.sse_sequence, self.outliers = sse_func.read_sse_asg(explicit_stride_file)
 
+        # If the detected intervals are provided, skip the validation step. Override any values of start, end and boundary.
+
         # Try to detect GAIN-like order of SSE. Frist criterion is a C-terminal strand being present (= Stachel/TA)
         try: 
             self.end = self.complete_sse_dict['Strand'][-1][1]
@@ -1113,7 +1118,12 @@ class GainDomainNoAln:
 
         # Find the domain boundaries (this includes a check whether the sequence is in fact a GAIN)
         # Will return (None, None) if checks fail. 
-        self.start, self.subdomain_boundary = sse_func.find_boundaries(self.complete_sse_dict, 
+        if start is not None and subdomain_boundary is not None and end is not None:
+            self.start = start
+            self.subdomain_boundary = subdomain_boundary
+            self.end = end
+        else:
+            self.start, self.subdomain_boundary = sse_func.find_boundaries(self.complete_sse_dict, 
                                                                        self.end, 
                                                                        bracket_size=subdomain_bracket_size, 
                                                                        domain_threshold=domain_threshold,
@@ -1121,7 +1131,7 @@ class GainDomainNoAln:
         if (self.start is not None):
             self.hasSubdomain = True
 
-        if self.start == None:
+        if self.start is None:
             print("No Subdomain boundaries detected. Possible Fragment found.")
             self.hasSubdomain = False
             # For possible Fragment detection (i.e. Subdomain B only sequences), set start as the N-terminal res. of the first beta sheet    
