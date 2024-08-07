@@ -12,10 +12,15 @@ import sse_func
 class GainCollection:
     ''' 
     A collection of GainDomain objects with collected Anchors.
-    This is used for generating the information needed to hardcode the indexing info
+    This is used for generating the information needed to hardcode the indexing info.
+
+    For diagnosing and evaluating purposes, the GainCollection object may be called with a proprietary alignment and a corresponding quality file.
+        This is useful if you want to evaluate based on alignment first for finding initial segments, segment centers and possible templates.
+    This is not necessary for "production", if you already have your templates and data ready.
 
     no_alignment : bool
         specifies whether the collection shall be instantiated without any alignment data default = False
+        Also, no "ANCHORS" are generated here.
 
     Attributes
     ----------
@@ -123,7 +128,6 @@ class GainCollection:
         None
         '''
         if sequence_files:
-
             # Compile all sequence files to a sequences object
             sequences = np.empty([len(sequence_files)])
 
@@ -156,6 +160,8 @@ class GainCollection:
             if len(explicit_stride) > 1:
                 print(f"WARNING: AMBIGUITY in STRIDE files: {explicit_stride}") 
             #print("DEBUG:", name)
+
+            # ==== THIS IS FOR GainCollections WITH ALIGNMENT ====
             if not no_alignment:
                 newGain = GainDomain(alignment_file = alignment_file, 
                                     aln_cutoff = aln_cutoff,
@@ -187,6 +193,7 @@ class GainCollection:
                 else:
                     invalid_count += 1
 
+            # ==== THIS IS FOR GainCollections WITHOUT ALIGNMENT ====
             if no_alignment:
                 newGain = GainDomainNoAln(
                                     name = name,
@@ -205,8 +212,9 @@ class GainCollection:
         print(f"Completed collection with {invalid_count} invalid structures.")
         # Kick out empty items from the Collection
         self.collection = self.collection[self.collection.astype(bool)] 
-        #print(f"DEBUG: {anchor_hist = }, {np.nonzero(anchor_hist)}")
 
+        # ==== ANCHORS: SEGMENT CENTERS PROVIDED FROM AN INITITAL MSA. ONLY GENERATED IN THE ALIGNMENT CASE ====
+        #         Note that these anchors are NOT segment centers used in the Generic Residue Numbering!
         if not no_alignment:
         # Get the leftmost anchor, which denotes the absolute first "ordered" structure in the alignment
             left_limit = np.where(anchor_hist!=0)[0][0]
@@ -214,8 +222,7 @@ class GainCollection:
             self.anchor_hist = anchor_hist 
             self.leftmost = left_limit
 
-            # Initialize detecting the overall subdomain boundary.
-
+            # Inititalize INFO from the ALIGNMENT
             self.alignment_subdomain_boundary = round(np.average(subdomain_boundaries))
             self.alignment_quality = quality
             self.alignment_length = aln_cutoff
@@ -224,14 +231,6 @@ class GainCollection:
     def print_gps(self):
         '''
         Prints information about the GPS of each GAIN domain.
-
-        Parameters
-        ----------
-        None
-
-        Returns
-        ----------
-        None
         '''
         for i, gain in enumerate(self.collection):
             try:
@@ -260,7 +259,7 @@ class GainCollection:
         ''' 
         Transform any input alignment containing all sequences in the GainCollection 
         into one where each residue is replaced with the respective 
-        Secondary Structure from the STRIDE files
+        Secondary Structure from the STRIDE files, i.e "H, C, E" instead of residues
 
         Parameters
         ----------
@@ -291,6 +290,9 @@ class GainCollection:
         print(f"Done transforming alignment {input_alignment} to {output_alignment} with SSE data.")
             
     def plot_sse_hist(self, title=None, n_max = 15, savename=None):
+        '''
+        Plot histograms of the secondary structure element distribution for the GainCollection
+        '''
         n_bins = n_max + 1
         sheets = []
         helices = []
@@ -337,7 +339,9 @@ class GainCollection:
 
 class GainDomain:
     '''
-    Instantiates the data from stride and the alignment, checking if the object is a GAIN domain
+
+    Instantiates an ALIGNMENT-DEPENDENT GAIN DOMAIN OBJECT from stride and the alignment, 
+    checking if the object is a valid GAIN domain
     and if so, creating analysis and establishing the indexing based on the results
 
     Attributes
@@ -1367,3 +1371,236 @@ class GainDomainNoAln:
                     trunc_pdb.write(line)
 
         print(f"[DEBUG]: gain_classes.GainDomain.write_gain_pdb : Created PDB with {atom_index-1} atom entries in {outfile}.")
+
+class FilterCollection:
+    ''' 
+    A collection of GainDomain objects used for filtering a set of AF2 models
+    This is used to condense the dataset towards one containing only GAIN domains
+
+    Attributes
+    ----------
+
+    collection : list
+        List of GainDomain instances
+   
+    valid_gps : np.array(bool)
+        For each protein, specify if the GPS detection is valid or not
+    
+    valid_subdomain : np.array(bool)
+        For each protein, specify if it has detected subdomains or not
+    
+    Methods
+    ----------
+    print_gps(self):
+        Prints info about all GainDomain GPS subinstances
+
+    write_all_seq(self, savename):
+        Writes all sequences in the Collection to one file
+
+    transform_alignment(self, input_alignment, output_alignment, aln_cutoff):
+        Transforms a given alignment with SSE data to a SSE-assigned version of the alignment
+        
+    write_filtered(self, savename, bool_mask):
+        Writes all sequences to File where a boolean mask (i.e. subdomain_criterion, gps_criterion)
+        is True at respective position
+    '''
+    def __init__(self,
+                alignment_file, 
+                aln_cutoff,
+                quality,
+                gps_index,
+                stride_files,
+                sequence_files=None, # modified to object containing all seqs
+                sequences=None, # replaces sequence_files
+                subdomain_bracket_size=20,
+                domain_threshold=20,
+                coil_weight=0.00,
+                alignment_dict=None): 
+        '''
+        Constructs the GainCollection objects by initializing one GainDomain instance per given sequence
+        
+        Parameters
+        ----------
+        alignment_file:     str, required
+            The base dataset alignment file
+
+        aln_cutoff:         int, required
+            Integer value of last alignment column
+
+        quality:            list, required
+            List of quality valus for each alignment column. Has to have $aln_cutoff items
+            By default, would take in the annotated Blosum62 values from the alignment exported from Jalview
+
+        gps_index:          int, required
+            Alignment column index of the GPS-1 residue (consensus: Leu)
+        
+        stride_files:       list, required
+            A list of stride files corresponding to the sequences contained within.
+        
+        sequence_files:     list, optional
+            A list of sequence files to be read as the collection - specify either this
+            or sequences as an object instead of files for sequences
+        
+        sequences:          object, optional
+            A list of (sequence_name, sequence) tuples containing all sequences. Can be specified
+            instead of sequence_files
+
+        subdomain_bracket_size: int, optional
+            Smoothing window size for the signal convolve function. Default = 20.
+
+        domain_threshold:   int, optional
+            Minimum size of a helical segment to be considered candidate for Subdomain A of GAIN domain. Default = 20.
+
+        coil_weight:        float, optional
+            Weight assigned to unordered residues during Subdomain detection. Enables decay of helical signal
+            default = 0. Recommended values < +0.2 for decay
+
+        Returns
+        ----------
+        None
+        '''
+        # Initialize collection (containing all GainDomain instances) and the anchor-histogram
+        if sequence_files:
+            # Compile all sequence files to a sequences object
+            sequences = np.empty([len(sequence_files)])
+            for i, seq_file in enumerate(sequence_files):
+                name, seq = sse_func.read_seq(seq_file, return_name=True)
+                sequences[i] = (name, seq)
+        elif (sequences is not None):
+            print(f"Found sequences object.")
+        else: 
+            print(f"ERROR: no sequence_files or sequences parameter found. Aborting compilation.")
+            return None
+        self.collection = np.empty([len(sequences)], dtype=object)
+        
+        valid_gps = np.zeros([len(sequences)], dtype=bool)
+        valid_subdomain = np.zeros([len(sequences)], dtype=bool)
+        #anchor_hist = np.zeros([aln_cutoff])#
+        # Create a GainDomain instance for each sequence file contained in the list
+        for i,seq_tup in enumerate(sequences):
+            # updated GainDomain class
+            name, sequence = seq_tup
+            explicit_stride = [stride for stride in stride_files if name.split("-")[0] in stride]
+            if len(explicit_stride) == 0:
+                print(f"Stride file not found for {name}")
+                continue
+            newGain = GainDomain(alignment_file, 
+                                  aln_cutoff,
+                                  quality,
+                                  name = name,
+                                  sequence = sequence,
+                                  gps_index = gps_index, 
+                                  subdomain_bracket_size = subdomain_bracket_size,
+                                  domain_threshold = domain_threshold,
+                                  coil_weight = coil_weight,
+                                  explicit_stride_file = explicit_stride[0],
+                                  without_anchors = True,
+                                  skip_naming = True,
+                                  alignment_dict = alignment_dict)
+
+            # Check if the object staisfies minimum criteria
+            if newGain.isValid: 
+                  
+                self.collection[i] = newGain
+                  
+                if newGain.hasSubdomain:
+                    valid_subdomain[i] = True
+                if newGain.GPS.isConsensus:
+                    valid_gps[i] = True
+        
+        self.valid_subdomain = valid_subdomain
+        self.valid_gps = valid_gps
+        print(f"Completed Collection initialitazion of {len(sequences)} sequences.\n"
+             f"{np.count_nonzero(self.collection)} valid proteins were found.\n"
+             f"{np.count_nonzero(self.valid_subdomain)} of which have detected Subdomains.\n"
+             f"{np.count_nonzero(self.valid_gps)} of which have detected consensus GPS motifs.\n")
+
+    def print_gps(self):
+        '''
+        Prints information about the GPS of each GAIN domain.
+
+        Parameters:
+            None
+        Returns:
+            None
+        '''
+        for i, gain in enumerate(self.collection):
+            try:
+                gain.GPS.info()
+            except:
+                print(f"No GPS data for {gain.name}. Likely not a GAIN Domain!")
+
+    def write_all_seq(self, savename):
+        '''
+        Write all GAIN sequences of the GainCollection into one fasta file.
+
+        Parameters
+        ----------
+        savename: str, required
+            Output name of the fasta file.
+
+        Returns
+        ----------
+        None
+        '''
+        with open(savename, 'w') as f:
+            for gain in self.collection:
+                f.write(f">{gain.name[:-3]}\n{''.join(gain.sequence)}\n")
+    
+    def write_filtered(self, savename, bool_mask=None, write_mode='w'):
+                  
+        '''
+        Internal function for writing filtered sequences to file.
+        Takes the Gain.sequence np.array type to write the truncated versions.
+        
+        Parameters
+        ----------
+        savename: str, required
+            Output name of the fasta file.
+        bool_mask: list/array, required
+            A mask of len(self.collection) where a boolean defines whether to write the
+            sequence to file or not
+        Returns
+        ----------
+        None
+        '''
+        with open(savename, write_mode) as f:
+            print(f"writing filtered to {savename}")
+            for i, gain in enumerate(self.collection):
+                if gain is not None and bool_mask[i] == True:
+                    f.write(f">{gain.name.replace('.fa','')}\n{''.join(gain.sequence)}\n")
+
+    def transform_alignment(self, input_alignment, output_alignment, aln_cutoff):
+        ''' 
+        Transform any input alignment containing all sequences in the GainCollection 
+        into one where each residue is replaced with the respective 
+        Secondary Structure from the STRIDE files
+
+        Parameters
+        ----------
+        input_alignment: str, required
+            Input alignment file
+        output_alignment: str, required
+            Output alignment file
+        aln_cutoff: int, required
+            Last alignment column to be read from the Input Alignment
+
+        Returns
+        ---------
+        None
+        '''
+        initial_dict = sse_func.read_alignment(input_alignment, aln_cutoff)
+        out_dict = {}
+        for gain in self.collection:
+            sse_alignment_row = np.full([aln_cutoff], fill_value='-', dtype='<U1')
+            mapper = sse_func.get_indices(gain.name, gain.sequence, input_alignment, aln_cutoff)
+            for index, resid in enumerate(gain.sse_sequence):
+                sse_alignment_row[mapper[index]] = resid
+            out_dict[gain.name[:-3]] = sse_alignment_row
+
+        # Write to file
+        with open(output_alignment, "w") as f:
+            for key in out_dict.keys():
+                f.write(f">{key}\n{''.join(out_dict[key])}\n")
+        print(f"Done transforming alignment {input_alignment} to {output_alignment} with SSE data.")
+            
