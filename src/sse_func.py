@@ -459,14 +459,14 @@ def offset_sequences(full_seqs, short_seqs):
     #           a dictionary with {sequence_name}:{sequence} as items
     # Returns total number of sequences, multi_seq object [(name, sequence), (), ...]
     adjusted_seqs = []
-    for i,tup in enumerate(short_seqs):
+    for tup in short_seqs:
         x = find_the_start(longseq=full_seqs[tup[0]], shortseq=tup[1])
         if x == 0:
             # In this case, no offset is needed.
-            adjusted_seqs.append( (tup[0],full_seqs[tup[0]][:len(tup[1])-1]) )
+            adjusted_seqs.append( (tup[0], full_seqs[tup[0]][:len(tup[1])-1]) )
         else:
-            adjusted_seqs.append( (tup[0],full_seqs[tup[0]][x-1:x+len(tup[1])-1]) )
-        return i, adjusted_seqs
+            adjusted_seqs.append( (tup[0], full_seqs[tup[0]][x-1:x+len(tup[1])-1]) )
+    return adjusted_seqs
 
 def sse_sequence2bools(sse_dict:dict):
     '''
