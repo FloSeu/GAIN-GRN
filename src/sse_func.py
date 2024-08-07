@@ -49,7 +49,9 @@ def read_sse_asg(file):
             DICT containing all outlier residues outside of 2 sigma with the respectve float multiple of StdDev
     '''
 
-    asgs = [l for l in open(file).readlines() if l.startswith("ASG")]
+    with open(file) as f:
+        lines = f.readlines()
+    asgs = [l for l in lines if l.startswith("ASG")]
 
     first_res = int(asgs[0].split(None)[3])
     last_res = int(asgs[-1].split(None)[3]) 
