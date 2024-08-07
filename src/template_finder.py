@@ -963,7 +963,8 @@ def assign_indexing(gain_obj:object, file_prefix: str, gain_pdb: str, template_d
         print(f"[DEBUG] assign_indexing: {gain_obj.start = }\n\t{gain_obj.end = }\n\t{gain_obj.subdomain_boundary = }\n\t{gain_pdb = }\n\t{template_mode = }")
     # Arbitrarily defined data for templates. Receptor type -> template ID
     # Load the data associated with the templates from the JSON file.
-    tdata = SimpleNamespace(**json.load(open(template_json)))
+    with open(template_json) as jj:
+        tdata = SimpleNamespace(**json.load(jj))
     # evaluate the template dir and find sda and sdb templates:
     sda_templates = {}
     sdb_templates = {}
