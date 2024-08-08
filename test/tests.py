@@ -1,11 +1,13 @@
 import unittest
 import sys, os, re, glob
 
+import gaingrn.scripts.structure_utils
+
 sys.path.append('/home/hildilab/agpcr_nom/repo/')
 from gaingrn import sse_func
-from gaingrn import execute
-from gaingrn import gain_classes
-from gaingrn import template_finder
+import gaingrn.scripts.io
+from gaingrn.scripts.gain_classes import GainCollection, GainDomainNoAln
+import gaingrn.scripts.template_finder
 # Test functions have to start with "test_"
 
 class TestBinaries(unittest.TestCase):
@@ -18,7 +20,7 @@ class TestBinaries(unittest.TestCase):
         out_file = "stride_test.out"
         self.assertTrue(os.path.isfile(self.STRIDE_BIN))
         stride_command = f"{self.STRIDE_BIN} {pdb_file} -f{out_file}"
-        exit_code = execute.run_command(stride_command)
+        exit_code = gaingrn.scripts.io.run_command(stride_command)
         self.assertTrue(exit_code == 0)
         self.assertTrue(os.path.isfile(out_file))
         with open(out_file) as of:
@@ -35,14 +37,14 @@ class TestBinaries(unittest.TestCase):
 
         self.assertTrue(os.path.isfile(self.GESAMT_BIN))
         gesamt_command = f'{self.GESAMT_BIN} {template_pdb} {mobile_pdb}'
-        execute.run_command(gesamt_command, out_file=out_file)
+        gaingrn.scripts.io.run_command(gesamt_command, out_file=out_file)
 
         self.assertTrue(os.path.isfile(out_file))
         with open(out_file) as of:
             gesamt_data = of.read()
 
-        qscore = re.compile("Q-score +: 0\.3[0-9]+")
-        rmsd = re.compile("RMSD *: 0\.1[0-9]+")
+        qscore = re.compile(r"Q-score +: 0\.3[0-9]+")
+        rmsd = re.compile(r"RMSD *: 0\.1[0-9]+")
         qmatch = re.search(qscore, gesamt_data).group()
         rmsdmatch = re.search(rmsd, gesamt_data).group()
         print("\n== GESAMT ALIGNMENT METRICS ==", qmatch, rmsdmatch, sep="\n")
@@ -60,7 +62,7 @@ class TestFunctions(unittest.TestCase):
         GESAMT_BIN = '/home/hildilab/lib/xtal/ccp4-8.0/ccp4-8.0/bin/gesamt'
 
         # First, generate the GainDomain object fromt the STRIDE file
-        pkd_gain = gain_classes.GainDomainNoAln(start=None,
+        pkd_gain = GainDomainNoAln(start=None,
                                 subdomain_boundary=None, 
                                 end=None, 
                                 fasta_file=None, 
@@ -70,7 +72,7 @@ class TestFunctions(unittest.TestCase):
 
         # With the object, feed in the PDB for structural alignment and the template data
         print("\nIndexing human PKD1 onto the GAIN-GRN. Expect a number of unindexed segments on the extra Subdomain...")
-        element_intervals, element_centers, residue_labels, unindexed_elements, params = template_finder.assign_indexing(pkd_gain, 
+        element_intervals, element_centers, residue_labels, unindexed_elements, params = gaingrn.scripts.template_finder.assign_indexing(pkd_gain, 
                                                                                     file_prefix=f"hpkd1/", 
                                                                                     gain_pdb="../data/example/PKD1_HUMAN_unrelaxed_rank_1_model_3.pdb",
                                                                                     template_dir='../data/template_pdbs/',
@@ -114,20 +116,20 @@ class TestClasses(unittest.TestCase):
         stride_files = glob.glob("./test_data/gain_collection/stride/*.stride")
         gps_minus_one = 6553
         aln_cutoff = 6567
-        alignment_dict = sse_func.read_alignment(alignment_file, aln_cutoff)
-        quality = sse_func.read_quality(quality_file)
+        alignment_dict = gaingrn.scripts.io.read_alignment(alignment_file, aln_cutoff)
+        quality = gaingrn.scripts.io.read_quality(quality_file)
 
-        valid_seqs = sse_func.read_multi_seq("./test_data/gain_collection/offset_test_seqs.fa") # MODEL SEQUENCES
-        full_seqs = sse_func.read_alignment( "./test_data/gain_collection/full_test_seqs.fa") # UNIPROT QUERY SEQUENCES
+        valid_seqs = gaingrn.scripts.io.read_multi_seq("./test_data/gain_collection/offset_test_seqs.fa") # MODEL SEQUENCES
+        full_seqs = gaingrn.scripts.io.read_alignment( "./test_data/gain_collection/full_test_seqs.fa") # UNIPROT QUERY SEQUENCES
  
-        valid_adj_seqs = sse_func.offset_sequences(full_seqs=full_seqs, short_seqs=valid_seqs)
+        valid_adj_seqs = gaingrn.scripts.structure_utils.offset_sequences(full_seqs=full_seqs, short_seqs=valid_seqs)
                     
         print(f"Adjusted the sequence offset of {len(valid_adj_seqs)} sequences.")
 
-        alignment_dict = sse_func.read_alignment(alignment_file, aln_cutoff)
-        quality = sse_func.read_quality(quality_file)
+        alignment_dict = gaingrn.scripts.io.read_alignment(alignment_file, aln_cutoff)
+        quality = gaingrn.scripts.io.read_quality(quality_file)
 
-        test_collection = gain_classes.GainCollection(  alignment_file = alignment_file,
+        test_collection = GainCollection(  alignment_file = alignment_file,
                                     aln_cutoff = aln_cutoff,
                                     quality = quality,
                                     gps_index = gps_minus_one,
