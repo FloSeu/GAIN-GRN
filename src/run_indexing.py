@@ -13,6 +13,11 @@ os.chdir("/home/hildilab/agpcr_nom/repo")
 
 from indexing_classes import StAlIndexing
 
+try: 
+    GESAMT_BIN = os.environ.get('GESAMT_BIN')
+except:
+    GESAMT_BIN = "/home/hildilab/lib/xtal/ccp4-8.0/ccp4-8.0/bin/gesamt"
+
 def find_pdb(name, pdb_folder):
     identifier = name.split("-")[0]
     target_pdb = glob.glob(f"{pdb_folder}/*{identifier}*.pdb")[0]
@@ -62,11 +67,11 @@ if __name__ == '__main__':
     stal_indexing = StAlIndexing(valid_collection.collection, 
                                 prefix="/home/hildilab/agpcr_nom/test_stal_indexing/pkds_", 
                                 pdb_dir='/home/hildilab/agpcr_nom/pkd_pdbs/',  
-                                template_dir='/home/hildilab/agpcr_nom/r4_template_pdbs', 
+                                template_dir='../data/r4_template_pdbs', 
                                 #fasta_offsets=fasta_offsets,
                                 n_threads=4,
-                                template_json='template_data.json',
-                                gesamt_bin="/home/hildilab/lib/xtal/ccp4-8.0/ccp4-8.0/bin/gesamt",
+                                template_json='../data/template_data.json',
+                                gesamt_bin=GESAMT_BIN,
                                 debug=False
                                )
 

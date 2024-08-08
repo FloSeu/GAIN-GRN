@@ -5,11 +5,12 @@
 # GainCollection ---|- GainDomain ---|- Anchors
 #                   |- GainDomain    |- GPS
 #                   |- ...
-
 import matplotlib.pyplot as plt
 import numpy as np
-
-from . import sse_func
+try:
+    from src import sse_func
+except:
+    import sse_func
 
 class GainCollection:
     ''' 
