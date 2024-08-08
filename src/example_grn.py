@@ -4,6 +4,7 @@
 # LOCAL IMPORTS
 import template_finder as tf
 from gain_classes import GainDomainNoAln
+import os
 
 try: 
     GESAMT_BIN = os.environ.get('GESAMT_BIN')
