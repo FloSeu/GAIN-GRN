@@ -8,7 +8,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 try:
-    from src import sse_func
+    from gaingrn import sse_func
 except:
     import sse_func
 
