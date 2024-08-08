@@ -2,10 +2,10 @@ import unittest
 import sys, os, re, glob
 
 sys.path.append('/home/hildilab/agpcr_nom/repo/')
-from gaingrn import sse_func
-from gaingrn import execute
-from gaingrn import gain_classes
-from gaingrn import template_finder
+from src import sse_func
+from src import execute
+from src import gain_classes
+from src import template_finder
 # Test functions have to start with "test_"
 
 class TestBinaries(unittest.TestCase):
