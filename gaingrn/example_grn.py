@@ -2,7 +2,7 @@
 #       In this case, we feed in the GAIN pdb from human PKD1 alongside its STRIDE output file
 
 # LOCAL IMPORTS
-import template_finder as tf
+import gaingrn.scripts.assign as tf
 from gain_classes import GainDomainNoAln
 import os
 

@@ -1,11 +1,65 @@
 ## scripts/io.py
 #   contains functions for file input/output operations and running commands like STRIDE as command line.
 
-import glob
-import os
-import shlex
+import os, json, re, glob, shlex
 from subprocess import PIPE, Popen
 import numpy as np
+import pandas as pd
+
+
+# executing binaries
+
+def run_command(cmd, out_file=None, cwd=None):
+     # wrapper for running a command line argument
+    if not cwd:
+        cwd = os.getcwd()
+    if out_file:
+        out = open(out_file, 'w')
+        out.flush()
+        p = Popen(shlex.split(cmd), stdout=out, stderr=PIPE, bufsize=10, universal_newlines=True, cwd=cwd)
+    else:
+        p = Popen(shlex.split(cmd), stdout=PIPE, stderr=PIPE, bufsize=10, universal_newlines=True, cwd=cwd)
+        for line in p.stdout:
+            print(line)
+    if out_file:
+        for line in p.stderr:
+            print(line)
+
+    exit_code = p.poll()
+    # Discard all outputs
+    _ = p.communicate()
+
+    if out_file:
+        out.close()
+
+    p.terminate()
+
+    return exit_code
+
+def run_logged_command(cmd, logfile=None, outfile=None):
+    # The command would be the whole command line, in this case the gesamt command.
+    # also : shlex.split("cmd")
+    p = Popen(cmd, shell=True,
+            stdout=PIPE,
+            stderr=PIPE,
+            bufsize=10,
+            universal_newlines=True)
+    #exit_code = p.poll()
+    outs, errs = p.communicate()
+    if outfile is not None:
+        f_out = open(outfile, "w")
+        f_out.write(outs)
+        f_out.close()
+    if logfile is not None:
+        f_err = open(logfile, "a")
+        f_err.write(f"\nCalled Function run_command with: {cmd}\nOutput to: {logfile}")
+        f_err.write(errs)
+        f_err.close()
+    if outfile is None:
+        return outs
+    return
+
+#read_write
 
 def read_sse_loc(file):
     '''
@@ -320,34 +374,6 @@ def write2fasta(sequence, name, filename):
     print(f'NOTE: Written {name} to fasta in {filename}.')
 
 
-def run_command(cmd, out_file=None, cwd=None):
-     # wrapper for running a command line argument
-    if not cwd:
-        cwd = os.getcwd()
-    if out_file:
-        out = open(out_file, 'w')
-        out.flush()
-        p = Popen(shlex.split(cmd), stdout=out, stderr=PIPE, bufsize=10, universal_newlines=True, cwd=cwd)
-    else:
-        p = Popen(shlex.split(cmd), stdout=PIPE, stderr=PIPE, bufsize=10, universal_newlines=True, cwd=cwd)
-        for line in p.stdout:
-            print(line)
-    if out_file:
-        for line in p.stderr:
-            print(line)
-
-    exit_code = p.poll()
-    # Discard all outputs
-    _ = p.communicate()
-
-    if out_file:
-        out.close()
-
-    p.terminate()
-
-    return exit_code
-
-
 def run_mafft(mafft_bin, args, copied_fasta):
 	# call MAFFT twice, once for the map (where the truncating can be refined), once for outputting alignment
 	# the fasta should be in the outdir/alignment, since the map will be created there too
@@ -364,3 +390,107 @@ def run_stride(pdb_file, out_file, stride_bin):
 	# Executes the STRIDE binary via the wrapper function
 	stride_command = f'{stride_bin} {pdb_file} -f{out_file}'
 	run_command(stride_command)
+
+
+def read_gesamt_pairs(gesamtfile, return_unmatched=True):
+    with open(gesamtfile) as f:
+        pair_lines = [line for line in f.readlines() if line.startswith("|")][2:]
+        #|H- A:LEU 720 | <**1.21**> |H- A:LEU 633 |
+        #| - A:ALA 721 | <..1.54..> | + A:GLN 634 |
+        #| + A:GLU 722 | <..1.75..> | + A:PRO 635 |
+        #| + A:GLU 723 |            | + A:GLN 636 |
+        #| + A:ASN 724 |            | - A:ALA 637 |
+        #|H+ A:ARG 725 | <..2.08..> |H- A:LEU 638 |
+    # construct a data structure with indices of both sides (fixed, mobile)
+    mobile_pairs = {}
+    template_pairs = {}
+    for pair in pair_lines:
+        template_str, distance_str, mobile_str = pair[9:13].strip(), pair[19:23].strip(), pair[36:40].strip()
+        #print(template_str, distance_str, mobile_str, "\n", pair)
+        # If either residue is empty, let the pair point to None
+        if len(template_str) == 0:
+            mobile_pairs[int(mobile_str)] = (None, None)
+            continue
+        if len(mobile_str) == 0:
+            template_pairs[int(template_str)] = (None, None)
+            continue
+        if len(distance_str) == 0:
+            dist = None
+        else:
+            dist = float(distance_str)
+
+        if return_unmatched:
+            template_pairs[int(template_str)] = (int(mobile_str), dist)
+            mobile_pairs[int(mobile_str)] = (int(template_str), dist)
+        if not return_unmatched and dist is None:
+            template_pairs[int(template_str)] = (None, None)
+            mobile_pairs[int(mobile_str)] = (None, None)
+        if not return_unmatched and dist is not None:
+            template_pairs[int(template_str)] = (int(mobile_str), dist)
+            mobile_pairs[int(mobile_str)] = (int(template_str), dist)
+
+    return template_pairs, mobile_pairs
+
+
+def find_anchor_matches(file, anchor_dict,  isTarget=False, return_unmatched=False, debug=False):
+    # Takes a gesamt file and an anchor dictionary either of the target or the template and returns the matched other residue with the pairwise distance
+    # as a dictionary: {'H1': (653, 1.04) , ...}
+    template_pairs, mobile_pairs = read_gesamt_pairs(file, return_unmatched=return_unmatched)
+    # Find the closest residue to template anchors
+    matched_residues = {}
+    if not isTarget:
+        parsing_dict = template_pairs
+    else:
+        parsing_dict = mobile_pairs
+
+    if debug: print(f"[DEBUG]: find_anchor_matches: {file = }, {parsing_dict = }")
+    try:
+        start, end = min(parsing_dict.keys()), max(parsing_dict.keys())
+    except:
+        print("NOT MATCHED:", parsing_dict, file)
+        return {}
+    #start, end = min(parsing_dict.keys()), max(parsing_dict.keys())
+    for anchor_name, anchor_res in anchor_dict.items():
+        # If the anchor lies outside the aligned segments, pass empty match (None, None)
+        if anchor_res < start or anchor_res > end:
+            matched_residues[anchor_name] = (None, None)
+            continue
+        matched_residues[anchor_name] = parsing_dict[anchor_res]
+
+    return matched_residues
+
+
+def save2json(distances, names, savename):
+    # stores an RMSD matrix to a JSON file
+    df = pd.DataFrame(distances, index = list(names), columns = list(names))
+    df = df.to_json(orient='index')
+    with open(f"../{savename}.json",'w') as c:
+        c.write(json.dumps(df))
+
+
+def get_agpcr_type(name):
+    # Queries the protein name to find the receptor type. If not found, returns "X" to indicate unknown type
+    queries = [('AGR..', name, lambda x: x[-1][-2:]),
+                ('ADGR..', name, lambda x: x[-1][-2:]),
+                ('cadher.*receptor.', name.lower(), lambda x: f"C{x[-1][-1]}"),
+                ('cels?r.', name.lower(), lambda x: f"C{x[-1][-1]}"),
+                ('latrophilin.*protein-?\d', name.lower(), lambda x: f"L{x[-1][-1]}"),
+                ('latrophilin-?\d', name.lower(), lambda x: f"L{x[-1][-1]}"),
+                ('GP?R133', name.upper(),lambda x: 'D1'),
+                ('GP?R126', name.upper(),lambda x: 'G6'),
+                ('GP?R?124', name.upper(),lambda x: 'A2'),
+                ('GP?R?125', name.upper(),lambda x: 'A3'),
+                ('GP?R112', name.upper(),lambda x: 'G4'),
+                ('GP?R116', name.upper(),lambda x: 'F5'),
+                ('GP?R144', name.upper(),lambda x: 'D2'),
+                ('ag-?.*-?coupled-?receptor-?.-?\d', name.lower(),lambda x: x[-1].replace('-','')[-2:].upper()),
+                ('brain-?specific-?angiogenesis-?inhibitor-?\d', name.lower(), lambda x: f"B{x[-1][-1]}"),
+                ('emr\d', name.lower(), lambda x: f"E{x[-1][-1]}"),
+                ('adhesion.?g.*coupled.?receptor...', name.lower(), lambda x: x[-1][-2:].upper())
+                ]
+    for pattern, searchstring, output in queries:
+        match = re.findall(pattern, searchstring)
+        if match != []:
+            #if output(match) == '': print(name)
+            return output(match)
+    return 'X'

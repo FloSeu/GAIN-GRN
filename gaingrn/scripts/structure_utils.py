@@ -481,3 +481,21 @@ def cut_sse_dict(start, end, sse_dict):
         new_dict[key] = new_sse_list     
 
     return new_dict
+
+
+def get_pdb_extents(pdb, subdomain_boundary = None):
+    with open(pdb) as p:
+        data = [l for l in p.readlines() if l.startswith("ATOM")]
+    first = data[0][22:26]
+    last = data[-1][22:26]
+    if subdomain_boundary is not None:
+        all_res = sorted(np.unique([int(l[22:26]) for l in data]))
+        if subdomain_boundary not in all_res:
+            # Find the two closest residues to the subdomain boundary (N- and C-terminal)
+            sda_boundary = np.max([res for res in all_res if res < subdomain_boundary])
+            sdb_boundary = np.min([res for res in all_res if res > subdomain_boundary])
+        else:
+            sda_boundary, sdb_boundary = subdomain_boundary, subdomain_boundary
+        return int(first), sda_boundary, sdb_boundary, int(last)
+    print("NOTE: Subdomain boundary not specified. Returning [start, None, None, end]")
+    return int(first), None, None, int(last)
