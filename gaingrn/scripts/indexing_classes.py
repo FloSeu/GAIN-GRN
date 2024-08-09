@@ -1,7 +1,7 @@
 # These are indexing classes for the GPCRDB-specific indexing of multiple GAIN domains.
 
 import numpy as np
-import template_finder as tf
+import graingrn.scripts.template_finder as tf
 import glob
 import multiprocessing as mp
 
