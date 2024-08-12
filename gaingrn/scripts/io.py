@@ -1,11 +1,10 @@
 ## scripts/io.py
 #   contains functions for file input/output operations and running commands like STRIDE as command line.
 
-import os, json, re, glob, shlex
+import os, json, re, glob, shlex, shutil
 from subprocess import PIPE, Popen
 import numpy as np
 import pandas as pd
-
 
 # executing binaries
 
@@ -302,13 +301,11 @@ def read_quality(jal):
 
     return cut_data
 
-
 def find_pdb(name, pdb_folder):
     # Finds a PDB within a directory containing the UniProtKB Accession of the provided Gain name.
     identifier = name.split("-")[0]
     target_pdb = glob.glob(f"{pdb_folder}/*{identifier}*.pdb")[0] # raises IndexError if not found.
     return target_pdb
-
 
 def find_stride_file(name, path="stride_out/*_0.stride"):
     '''
@@ -494,3 +491,42 @@ def get_agpcr_type(name):
             #if output(match) == '': print(name)
             return output(match)
     return 'X'
+
+# Function for Parsing out specific Files from the overall dataset based on selection
+def grab_selection(parse_string, stride_path, pdb_list, sequences, profile_path, target_dir, seqs=None):
+    # grabs PDB file, stride file, profiles, sequence from FASTA and copies to target dir.
+    if seqs is None:
+        sub_seqs = [seq for seq in sequences if parse_string.lower() in seq[0].lower()]
+    else: sub_seqs = seqs
+    print(f"Found {len(sub_seqs)} sequences.")
+    strides = glob.glob(stride_path+"*.stride")#
+    profiles = glob.glob(profile_path+"*.png")
+    
+    sub_strides = []
+    sub_profiles = []
+    sub_pdbs = []
+    
+    for seq in sub_seqs:
+        ac = seq[0].split("-")[0]
+        [sub_profiles.append(prof) for prof in profiles if ac in prof]
+        [sub_strides.append(stride) for stride in strides if ac in stride]
+        [sub_pdbs.append(pdb) for pdb in pdb_list if ac in pdb]
+    
+    for prof in sub_profiles:
+        name = prof.split("/")[-1]
+        shutil.copyfile(prof, target_dir+"profiles/"+name)
+    
+    for stride in sub_strides:
+        name = stride.split("/")[-1]
+        shutil.copyfile(stride, target_dir+"strides/"+name)
+    
+    for pdb in sub_pdbs:
+        name = pdb.split("/")[-1]
+        shutil.copyfile(pdb, target_dir+"pdbs/"+name)
+        
+    for seq in sub_seqs:
+        write2fasta(seq[1]+"\n", seq[0], target_dir+"seqs/"+seq[0]+".fa")
+        
+    print(f"Copied {len(sub_pdbs)} PDB files, {len(sub_strides)} STRIDE files,",
+          f" {len(sub_profiles)} Profiles and {len(sub_seqs)} Sequences",
+          f"for Selection {parse_string}")

@@ -2,8 +2,8 @@
 #       In this case, we feed in the GAIN pdb from human PKD1 alongside its STRIDE output file
 
 # LOCAL IMPORTS
-import gaingrn.scripts.assign as tf
-from gain_classes import GainDomainNoAln
+import gaingrn.scripts.assign
+from gaingrn.scripts.gain_classes import GainDomainNoAln
 import os
 
 try: 
@@ -21,7 +21,7 @@ pkd_gain = GainDomainNoAln(start=None,
                            explicit_stride_file="../data/example/PKD1_1.stride")
 
 # With the object, feed in the PDB for structural alignment and the template data
-element_intervals, element_centers, residue_labels, unindexed_elements, params = tf.assign_indexing(pkd_gain, 
+element_intervals, element_centers, residue_labels, unindexed_elements, params = gaingrn.scripts.assign.assign_indexing(pkd_gain, 
                                                                             file_prefix=f"../data/example/hpkd1", 
                                                                             gain_pdb="../data/example/PKD1_HUMAN_unrelaxed_rank_1_model_3.pdb",
                                                                             template_dir='../data/template_pdbs/',

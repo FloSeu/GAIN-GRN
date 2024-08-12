@@ -35,7 +35,11 @@ dependencies = [
     "setuptools>=61.0",
     "jupyter>=1.0.0",
     "ipython>=8.10.0",
-    "biopython>=1.81"
+    "biopython>=1.81",
+    "tqdm>=4.65",
+    "traitlets=4.2.1"
+    "ipywidgets==4.1.1",
+    "notebook=4.1.0"
 ]
 [options]
 packages = "gaingrn"

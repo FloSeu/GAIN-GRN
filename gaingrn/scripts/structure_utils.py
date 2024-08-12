@@ -1,7 +1,7 @@
-#sse_func.py
-# Functions to be used by gain_classes.py and workflow.py
-# For reading/writing stuff, parsing alignments, plotting etc.
+## scripts/structure_utils.py
+# Functions for extracting, parsing and handling secondary strcutural data
 
+import re
 import numpy as np
 
 def detect_GPS(alignment_indices, gps_minus_one, debug=False):
@@ -482,7 +482,6 @@ def cut_sse_dict(start, end, sse_dict):
 
     return new_dict
 
-
 def get_pdb_extents(pdb, subdomain_boundary = None):
     with open(pdb) as p:
         data = [l for l in p.readlines() if l.startswith("ATOM")]
@@ -499,3 +498,41 @@ def get_pdb_extents(pdb, subdomain_boundary = None):
         return int(first), sda_boundary, sdb_boundary, int(last)
     print("NOTE: Subdomain boundary not specified. Returning [start, None, None, end]")
     return int(first), None, None, int(last)
+
+def truncate_pdb(pdbfile:str, start:int, end:int):
+    # truncates pdbfile at the start and end residue, including them.
+    pdblines = open(pdbfile).readlines()
+    newlines = []
+    for line in pdblines:
+        if line.startswith("ATOM") and ( int(line[22:26]) < start or int(line[22:26]) > end ):
+            continue
+        if line.startswith("TER"):
+            prev_info = newlines[-1]
+            new_TER_line = f"TER   {str(int(prev_info[7:12])+1).rjust(5)}      {prev_info[17:26]}                                                      \n"
+            newlines.append(new_TER_line)
+            continue
+        newlines.append(line)
+
+    open(f'{pdbfile.replace(".pdb","_trunc.pdb")}', 'w').write("".join(newlines))
+    print(f"[NOTE] Truncated PDB to residues {start }-{end}.")
+    return pdbfile.replace(".pdb","_trunc.pdb")
+
+def truncate_stride_dict(stride_dict:dict, start:int, end:int):
+    # removes entries from the dictionary where the ssestart is behind the end or the sseend is before the start.
+    truncated_dict = {}
+    for key, list in stride_dict.items():
+        trunc_list = [tup for tup in list if (tup[0] < end and tup[1] > start)]
+        truncated_dict[key] = trunc_list
+    return truncated_dict
+
+
+def get_ca_indices(pdbfile, offset=0):
+    atoms = [l for l in open(pdbfile).readlines() if l[13:15] == "CA" and l.startswith("ATOM")]
+    ca_indices = {int(l[22:26]):int(l[6:11])-offset for l in atoms}
+    return ca_indices
+
+
+def get_pdb_offset(pdbfile):
+    match = re.findall("ATOM\s+\d+", open(pdbfile).read())
+    offset = int(match[0].split()[-1])
+    return offset
