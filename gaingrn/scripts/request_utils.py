@@ -58,7 +58,7 @@ def extract_gain_end(uniprot_accession:str, uniprot_info:list):
     print("No GPS entry found. Continuing to manual GPS/GAIN boundary specification.")
     return None, None, protein_name
 
-def get_alphafolddb_model(uniprot_accession, tmp_dir):
+def request_alphafolddb_model(uniprot_accession, tmp_dir):
     alphafold_id = f"AF-{uniprot_accession}-F1"
     database_version = "v4"
     model_url = f'https://alphafold.ebi.ac.uk/files/{alphafold_id}-model_{database_version}.pdb'
