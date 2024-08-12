@@ -370,6 +370,35 @@ def write2fasta(sequence, name, filename):
         fa.write(f'>{name}\n{sequence}')
     print(f'NOTE: Written {name} to fasta in {filename}.')
 
+def label2b(pdbfile, outfile, res2label, clear_b=False):
+    data = open(pdbfile).readlines()
+    newdata = []
+    for l in data:
+        if not l.startswith("ATOM"):
+            newdata.append(l)
+            continue
+        if not l[13:15] == "CA" or int(l[22:26]) not in res2label.keys():
+            #print(l[13:14], int(l[22:26]))
+            if clear_b:
+                k = l[:60]+"      "+l[67:]
+            newdata.append(k)
+            continue
+        k = l[:60]+res2label[int(l[22:26])].rjust(6)+l[67:]
+        newdata.append(k)
+    open(outfile, 'w').write("".join(newdata))
+    print(f"Written residue labels to PDB file CA entries : {outfile}")
+
+def grn2csv(res2label, outfile, target_gain): 
+    with open(outfile, "w") as csv:
+        csv.write("RESNR,RESNAME,LABEL\n")
+        for k in range(target_gain.start, target_gain.end+1):
+            if k in res2label.keys():
+                csv.write(f"{k},{target_gain.sequence[k-target_gain.start]},{res2label[k]}\n")
+            else:
+                csv.write(f"{k},{target_gain.sequence[k-target_gain.start]},\n")
+
+# run commands
+
 
 def run_mafft(mafft_bin, args, copied_fasta):
 	# call MAFFT twice, once for the map (where the truncating can be refined), once for outputting alignment
