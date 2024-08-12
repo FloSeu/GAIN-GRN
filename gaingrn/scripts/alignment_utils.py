@@ -81,7 +81,6 @@ def get_indices(name, sequence, alignment_file, aln_cutoff, alignment_dict=None,
     #print(f"{mapper}")
     return mapper
 
-
 def get_quality(alignment_indices, quality_arr):
     '''
     Parses through the quality array and extracts the matching columns of alignment indices to assign each residue a quality value.
@@ -103,7 +102,6 @@ def get_quality(alignment_indices, quality_arr):
         index_qualities[i] = quality_arr[position]
 
     return index_qualities
-
 
 def make_anchor_dict(fixed_anchors, sd_boundary):
     '''
@@ -216,3 +214,29 @@ def gain_set_to_template(list_of_gains, index_list, template_anchors, gesamt_fol
         distances[gain_idx,:] = gain_distances
         all_matched_anchors.append(matched_anchors)
     return distances, all_matched_anchors, unindexed_elements, unindexed_counter
+
+def find_offsets(fasta_file, accessions, sequences):
+    # searches through the accessions in the big sequence file,
+    # finds the start for the provided sequence
+    with open(fasta_file,"r") as fa:
+        fa_data = fa.read()
+        fasta_entries = fa_data.split(">")
+    seqs = []
+    headers = []
+    offsets = []
+    for seq in fasta_entries:
+        # Fallback for too short sequences
+        if len(seq) < 10: 
+            continue
+        data = seq.strip().split("\n")
+        headers.append(data[0].split("|")[1]) # This is only the UniProtKB Accession Number and will be matched EXACTLY
+        seqs.append("".join(data[1:]))
+    
+    heads = np.array(headers)
+    for idx, accession in enumerate(accessions):
+        seq_idx = np.where(heads == accession)[0][0]
+        offset = gaingrn.scripts.alignment_utils.find_the_start(seqs[seq_idx], sequences[idx])
+        #print(offset)
+        offsets.append(offset)
+    
+    return offsets
