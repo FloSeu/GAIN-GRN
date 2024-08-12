@@ -1,13 +1,12 @@
 import unittest
 import sys, os, re, glob
 
-import gaingrn.scripts.structure_utils
-
 sys.path.append('/home/hildilab/agpcr_nom/repo/')
-from gaingrn import sse_func
+
 import gaingrn.scripts.io
 from gaingrn.scripts.gain_classes import GainCollection, GainDomainNoAln
-import gaingrn.scripts.template_finder
+import gaingrn.scripts.structure_utils
+import gaingrn.scripts.template_utils
 # Test functions have to start with "test_"
 
 class TestBinaries(unittest.TestCase):
@@ -72,7 +71,7 @@ class TestFunctions(unittest.TestCase):
 
         # With the object, feed in the PDB for structural alignment and the template data
         print("\nIndexing human PKD1 onto the GAIN-GRN. Expect a number of unindexed segments on the extra Subdomain...")
-        element_intervals, element_centers, residue_labels, unindexed_elements, params = gaingrn.scripts.template_finder.assign_indexing(pkd_gain, 
+        element_intervals, element_centers, residue_labels, unindexed_elements, params = gaingrn.scripts.template_utils.assign_indexing(pkd_gain, 
                                                                                     file_prefix=f"hpkd1/", 
                                                                                     gain_pdb="../data/example/PKD1_HUMAN_unrelaxed_rank_1_model_3.pdb",
                                                                                     template_dir='../data/template_pdbs/',
