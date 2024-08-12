@@ -9,7 +9,6 @@ from gaingrn.scripts.structure_utils import get_pdb_extents
 from gaingrn.scripts.template_utils import find_best_templates
 
 
-
 def create_subdomain_indexing(gain_obj, subdomain, actual_anchors, threshold=3, padding=1, split_mode='single', silent=False,  debug=False):
     ''' 
     Makes the indexing list, this is NOT automatically generated, since we do not need this for the base dataset
