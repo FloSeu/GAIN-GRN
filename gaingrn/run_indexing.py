@@ -5,11 +5,7 @@
 # DEPENDENCIES
 import glob, pickle, os
 import pandas as pd
-import numpy as np
-import sse_func
 
-from gaingrn.scripts.io import find_pdb
-from gaingrn.scripts.alignment_utils import find_offsets
 from gaingrn.scripts.indexing_classes import StAlIndexing
 
 try: 
@@ -31,7 +27,7 @@ if __name__ == '__main__':
     stal_indexing = StAlIndexing(valid_collection.collection, 
                                 prefix="../data/pkds_", 
                                 pdb_dir='../data/pkd_pdbs/',  
-                                template_dir='../data/r4_template_pdbs', 
+                                template_dir='../data/template_pdbs', 
                                 #fasta_offsets=fasta_offsets,
                                 n_threads=4,
                                 template_json='../data/template_data.json',

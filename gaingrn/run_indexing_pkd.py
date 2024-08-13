@@ -5,8 +5,7 @@
 import glob, pickle, os
 import pandas as pd
 import numpy as np
-import sse_func
-import gaingrn.scripts.alignment_utils
+
 from gaingrn.scripts.indexing_classes import StAlIndexing
 
 try: 
