@@ -240,3 +240,43 @@ def find_offsets(fasta_file, accessions, sequences):
         offsets.append(offset)
     
     return offsets
+
+def calc_identity(aln_matrix):
+    # This takes an alignment matrix with shape=(n_columns, n_sequences) and generates counts based on the identity matrix.
+    # Returns the highest non "-" residue count as the most conserved residue and its occupancy based on count("-") - n_struc
+    n_struc = aln_matrix.shape[0]
+    quality = []
+    occ = []
+    for col in range(aln_matrix.shape[1]):
+        chars, count = np.unique(aln_matrix[:,col], return_counts=True)
+        dtype = [('aa', 'S1'), ('counts', int)]
+        values = np.array(list(zip(chars,count)), dtype=dtype)
+        s_values = np.sort(values, order='counts')
+
+        if s_values[-1][0] == b'-':
+            q = s_values[-2][1]
+        else:
+            q = s_values[-1][1]
+        x = np.where(chars == '-')[0][0]
+        occ.append(n_struc - count[x])
+        quality.append(q)
+    return quality, occ
+
+def offset_sequences(full_seqs, short_seqs, debug=False):
+    #re-indexes short sequences (i.e. from models) to have their start corresponding to the FASTA sequence contained in full seqs.
+    # short_seqs should be a read_multi_seq() object:
+    #           [(name, sequence), ()]
+    # full_seqs is a read_alignment() object:
+    #           a dictionary with {sequence_name}:{sequence} as items
+    # Returns total number of sequences, multi_seq object [(name, sequence), (), ...]
+    adjusted_seqs = []
+    for tup in short_seqs:
+        x = find_the_start(longseq=full_seqs[tup[0]], shortseq=tup[1])
+        if debug:
+            print(f"DEBUG: {tup[0]},{x}")
+        if x == 0:
+            # In this case, no offset is needed.
+            adjusted_seqs.append( (tup[0], full_seqs[tup[0]][:len(tup[1])]) )
+        else:
+            adjusted_seqs.append( (tup[0], full_seqs[tup[0]][x:x+len(tup[1])]) )
+    return adjusted_seqs

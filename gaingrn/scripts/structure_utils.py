@@ -208,23 +208,6 @@ def find_boundaries(sse_dict, seq_len, bracket_size=50, domain_threshold=50, coi
     #print(f"DEBUG: find_boundaries returning {boundaries[maxk] = }, {boundaries[maxk+1] = }")
     return gain_start, subdomain_boundary
 
-def offset_sequences(full_seqs, short_seqs):
-    #re-indexes short sequences (i.e. from models) to have their start corresponding to the FASTA sequence contained in full seqs.
-    # full_seqs should be a read_multi_seq() object:
-    #           [(name, sequence), ()]
-    # short_seqs is a read_alignment() object:
-    #           a dictionary with {sequence_name}:{sequence} as items
-    # Returns total number of sequences, multi_seq object [(name, sequence), (), ...]
-    adjusted_seqs = []
-    for tup in short_seqs:
-        x = find_the_start(longseq=full_seqs[tup[0]], shortseq=tup[1])
-        if x == 0:
-            # In this case, no offset is needed.
-            adjusted_seqs.append( (tup[0], full_seqs[tup[0]][:len(tup[1])-1]) )
-        else:
-            adjusted_seqs.append( (tup[0], full_seqs[tup[0]][x-1:x+len(tup[1])-1]) )
-    return adjusted_seqs
-
 def sse_sequence2bools(sse_dict:dict):
     '''
     Create a dictionary containing the actually detected alpha helices and beta sheets for all residues in sse_dict, 

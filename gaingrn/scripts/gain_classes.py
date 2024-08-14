@@ -7,6 +7,8 @@
 #                   |- ...
 import matplotlib.pyplot as plt
 import numpy as np
+import io
+import pickle
 
 import gaingrn.scripts.alignment_utils
 import gaingrn.scripts.io
@@ -565,7 +567,7 @@ class GainDomain:
             For new GAIN, this will be the alignment appended by the adding method.
             Returns empty list if failed. '''
         if debug:
-            print(f"DEBUG GainDomain.__init__ :\n\t{self.sequence}\n\t{type(self.sequence) = }\n\t{self.sequence.shape = }\n\t{alignment_file = }\n\t{type(alignment_dict) = }")
+            print(f"DEBUG GainDomain.__init__ :\n\t{self.sequence}\n\t{type(self.sequence) = }\n\t{self.sequence.shape = }\n\t{alignment_file = }")
         
         if truncation_map is not None: 
             cut_truncation_map = truncation_map[self.start:self.end+1]
@@ -1078,12 +1080,6 @@ class GainDomainNoAln:
 
         is_truncated :      bool, optional
             indicates if the sequence is already truncated to only contain the GAIN domain
-        
-        truncation_map :     np.array(boolean), optional
-            For the workflow.py - if a sequence is added and there is truncation present, this map indicates the truncated residues.
-
-        aln_start_res :     int, optional
-            if already predetermined for mafft --add sequences, also pass the start column wtihin the alignment.
         
         debug:              bool, optional
             specify if debug messages should be printed
@@ -1605,4 +1601,20 @@ class FilterCollection:
             for key in out_dict.keys():
                 f.write(f">{key}\n{''.join(out_dict[key])}\n")
         print(f"Done transforming alignment {input_alignment} to {output_alignment} with SSE data.")
-            
+
+# Loading Helper Class to help with comatibility issues.
+#   Creds to bossylobster https://stackoverflow.com/questions/2121874/python-pickling-after-changing-a-modules-directory
+class RenameUnpickler(pickle.Unpickler):
+    def find_class(self, module, name):
+        renamed_module = module
+        if module == "gain_classes":
+            renamed_module = "gaingrn.scripts.gain_classes"
+
+        return super(RenameUnpickler, self).find_class(renamed_module, name)
+
+def load_compatible(file_obj):
+    return RenameUnpickler(file_obj).load()
+#
+def loads_compatible(pickled_bytes):
+    file_obj = io.BytesIO(pickled_bytes)
+    return load_compatible(file_obj)

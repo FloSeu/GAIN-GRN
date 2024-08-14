@@ -83,3 +83,47 @@ def get_bb_distribution(stride_set):
     sphi = [mean_angle(all_angles[2]), angle_stdev(all_angles[2], mean_angle(all_angles[2]))]
     spsi = [mean_angle(all_angles[3]), angle_stdev(all_angles[3], mean_angle(all_angles[3]))]
     return hphi, hpsi, sphi, spsi
+
+
+def modify_stride(stride_file, outfolder, phi_lim, psi_lim, n_sigma=2.0):
+    # modify a stride file where the outliers of backbone angles are marked with loer case letters
+    # in line[75:79], the multiple of the standard deviation is noted for manually adjusting the respective cutoffs.
+    outliers = []
+    # also add the max float mult of sigma into the "~~~~" (line[75:79])
+    # "{:.2f}".format(maxsigma)
+    with open(stride_file) as stride:
+        d = stride.readlines()
+    newdata = []
+    for l in d:
+        if not l.startswith("ASG") or l[24] != "E":
+            newdata.append(l)
+            continue
+
+        i = l.split()
+        angles = [float(i[7]), float(i[8])]
+        adj_angles = [a+360 if a<0 else a for a in angles]
+        if abs(angle_diff(adj_angles[0], phi_lim[0])) > n_sigma*phi_lim[1] or abs(angle_diff( adj_angles[1], psi_lim[0])) > n_sigma*psi_lim[1]:
+            # print("outlier found.", l, sep="\n")
+            maxsigma = max([ abs(angle_diff(adj_angles[0], phi_lim[0]) / phi_lim[1]) , 
+                             abs(angle_diff(adj_angles[1],psi_lim[0]) / psi_lim[1])    
+                           ])
+            k = l[:24]+"e"+l[25:75]+"{:.2f}".format(maxsigma)+"\n"
+            #print("DEBUG:", k)
+            newdata.append(k)
+            outliers.append(round(maxsigma, 2))
+            continue
+        
+        newdata.append(l)
+    
+    open(f"{outfolder}/{stride_file.split('/')[-1]}", 'w').write("".join(newdata))
+    
+    return outliers
+
+def stride_file_processing(stride_files, outfolder):
+
+    phi_lim = [-113.01754866504291, 29.968104201971208] # This is mean and SD of the Angle PHI
+    psi_lim = [132.75257372738366, 31.172184167730734]  #                                  PSI
+    outliers = []
+    for i,stride_file in enumerate(stride_files):
+        outliers += modify_stride(stride_file, outfolder, phi_lim, psi_lim)
+    print(f"Modified {i} stride files into the directory {outfolder}.")
