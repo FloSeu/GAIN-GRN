@@ -149,7 +149,10 @@ class GainCollection:
 
         # Initialize collection (containing all GainDomain instances) and the anchor-histogram
         self.collection = np.empty([len(sequences)], dtype=object)
-        anchor_hist = np.zeros([aln_cutoff])
+
+        if aln_cutoff is not None:
+            anchor_hist = np.zeros([aln_cutoff])
+            
         subdomain_boundaries = []
         # Create a GainDomain instance for each sequence file contained in the list
         invalid_count = 0

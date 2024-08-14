@@ -346,7 +346,7 @@ def assign_indexing(gain_obj:object, file_prefix: str, gain_pdb: str, template_d
             for label, v in gps_matches.items():
                 b_out[2][label] = v[0]
         else:
-            print("[WARNING] assing_indexing: No GPS matches have been detected. It will not be patched.")
+            print("[NOTE] assign_indexing: No GPS matches have been detected. It will not be patched.")
 
     params = {"sda_template":best_a, "sdb_template":best_b, "split_mode":highest_split, "receptor":agpcr_type}
     #      elements+intervals          element_centers             residue_labels              unindexed_elements   highest used split mode    

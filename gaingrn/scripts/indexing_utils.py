@@ -265,7 +265,7 @@ def get_elem_seq(uniprot, stal_indexing, valid_collection, segment):
     print(myseg[0], myseg[-1])
 
 
-def plot_segment_statistics(sse=None, xvals=None, y_plddt=None, y_occupancy=None, savename=None, show=False):
+def plot_segment_statistics(sse, xvals=None, y_plddt=None, y_occupancy=None, savename=None, show=False):
     fig, ax = plt.subplots(figsize=[5,2])
     fig.set_facecolor('w')
     ax.xaxis.set_minor_locator(MultipleLocator(1)) #AutoMinorLocator())
@@ -311,7 +311,7 @@ def plot_logo_segment(dataframe, sse, threshold=0.05, savename=None):
                                 ax=ax,
                                 color_scheme='chemistry',
                                 show_spines=False,
-                                font_name='DejaVu Mono')
+                                font_name='FreeSans')
 
     fig.set_facecolor('w')
 

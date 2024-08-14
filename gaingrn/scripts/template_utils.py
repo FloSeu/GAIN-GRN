@@ -49,6 +49,9 @@ def run_gesamt_execution(list_of_gain_obj, outfolder, gesamt_bin, pdb_folder='..
 
         # Getting and writing the EXTENT of the subdomain!
         pdb_start, sda_boundary, sdb_boundary, pdb_end = get_pdb_extents(gain_pdb, gain.subdomain_boundary)
+        if sda_boundary is None:
+            print("WARNING. NO BOUNDARIES DETECTED. THIS GAIN MAY BE FAULTY!", gain.name, gain_pdb, sep="\n\t")
+            continue
         if domain=='sda':
             extent_list.append(f"{pdb_start}-{sda_boundary}")
         else:
@@ -441,11 +444,13 @@ def find_best_templates(unknown_gain_obj, gesamt_bin, unknown_gain_pdb: str, sda
         if match is None:
             print("[WARNING]: NO RMSD FOUND:", cmd_string, output)
             val = 100.0 # penalty for non-matching template
+            qval = 0.0
         else:
             val = float(match.group(0)[-5:])
+            qval = float(qmatch.group(0)[-5:])
         a_names.append(sda_id)
         a_rmsds.append(val)
-        a_qvals.append(float(qmatch.group(0)[-5:]))
+        a_qvals.append(qval)
 
     if debug:
         print(f"HERE ARE THE RMSD VALUES FOR SUBDOAMIN A TEMPLATES:\n\t{a_names}\n\t{a_rmsds}\n\t{a_qvals}")
