@@ -3,10 +3,13 @@ import sys, os, re, glob
 
 sys.path.append('/home/hildilab/agpcr_nom/repo/')
 
+import gaingrn.scripts.alignment_utils
 import gaingrn.scripts.io
 from gaingrn.scripts.gain_classes import GainCollection, GainDomainNoAln
 import gaingrn.scripts.structure_utils
 import gaingrn.scripts.template_utils
+import pandas as pd
+from gaingrn.scripts.variant_classes import *
 # Test functions have to start with "test_"
 
 class TestBinaries(unittest.TestCase):
@@ -71,7 +74,7 @@ class TestFunctions(unittest.TestCase):
 
         # With the object, feed in the PDB for structural alignment and the template data
         print("\nIndexing human PKD1 onto the GAIN-GRN. Expect a number of unindexed segments on the extra Subdomain...")
-        element_intervals, element_centers, residue_labels, unindexed_elements, params = gaingrn.scripts.template_utils.assign_indexing(pkd_gain, 
+        element_intervals, element_centers, residue_labels, unindexed_elements, params = gaingrn.scripts.assign.assign_indexing(pkd_gain, 
                                                                                     file_prefix=f"hpkd1/", 
                                                                                     gain_pdb="../data/example/PKD1_HUMAN_unrelaxed_rank_1_model_3.pdb",
                                                                                     template_dir='../data/template_pdbs/',
@@ -121,7 +124,7 @@ class TestClasses(unittest.TestCase):
         valid_seqs = gaingrn.scripts.io.read_multi_seq("./test_data/gain_collection/offset_test_seqs.fa") # MODEL SEQUENCES
         full_seqs = gaingrn.scripts.io.read_alignment( "./test_data/gain_collection/full_test_seqs.fa") # UNIPROT QUERY SEQUENCES
  
-        valid_adj_seqs = gaingrn.scripts.structure_utils.offset_sequences(full_seqs=full_seqs, short_seqs=valid_seqs)
+        valid_adj_seqs = gaingrn.scripts.alignment_utils.offset_sequences(full_seqs=full_seqs, short_seqs=valid_seqs)
                     
         print(f"Adjusted the sequence offset of {len(valid_adj_seqs)} sequences.")
 
@@ -148,6 +151,32 @@ class TestClasses(unittest.TestCase):
             self.assertTrue(len(gain.sda_helices) == 7)
             self.assertTrue(len(gain.sdb_sheets) == 14)
         print(f"Checked Test GainCollection with {len(test_collection.collection)} GainDomain objects. All are valid.")
+    
+    def test_MutationAnalysis(self):
+        # Initialize the human GAIN collection
+
+        jsons = glob.glob("../data/gain_json/*.json")
+        csvs = glob.glob("../data/snp_mane/*csv")
+
+        human_collection = pd.read_pickle("../data/human_collection.pkl")
+
+        human_accessions = [gain.name.split("-")[0].split("_")[0] for gain in human_collection.collection]
+        human_sequences = ["".join(gain.sequence) for gain in human_collection.collection]
+        seq_file = '../data/all_query_sequences.fasta'
+
+        human_fasta_offsets = gaingrn.scripts.alignment_utils.find_offsets(seq_file,
+                                        human_accessions, 
+                                        human_sequences)
+
+        human_indexing = np.load("../data/human_indexing.pkl", allow_pickle=True)
+
+        appended_human_collection = gaingrn.scripts.assign.add_grn_labels(human_collection, human_indexing)
+
+        segments = ['H1','H2','H3','H4','H5','H6','S1','S2','S3','S4','S5','S6','S7','S8','S9','S10','S11','S12','S13','S14','GPS']
+
+        GainMutations = MutationAnalysis(appended_human_collection, segments, jsons, csvs, human_fasta_offsets)
+
+        self.assertTrue(len(GainMutations.generalized_mutations['H1.39']) == 3)
 
 if __name__ == '__main__':
     # Get STRIDE and GESAMT binary from SYSTEM.

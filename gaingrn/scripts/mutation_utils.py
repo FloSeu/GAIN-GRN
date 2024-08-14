@@ -1,6 +1,9 @@
 # mutation_utils.py
 # Functions for Analysis of Cancer mutations and natural variants of the GAIN-GRN dataset.
-import re, json
+import re, json, math
+import numpy as np
+from matplotlib import pyplot as plt
+from matplotlib.ticker import (MultipleLocator, AutoMinorLocator, FixedLocator)
 import gaingrn.scripts.io
 import gaingrn.scripts.assign
 
@@ -71,14 +74,14 @@ def retrieve_csv_vars(name, csv_files, filter_str=None, with_resid=True):
 
     return variant_list
 
-def extract_variants(gain, files, resid_key, csvs):
+def extract_variants(gain, files, resid_key):
     # Wrapper function for getting variants / mutations in the correct format.
     # Draws the list of vars/muts from the respective list of jsons/csvs abd gets the individual positions either at entry 
     # resid_key : 'x' (json from NCGA) / 'resid' (csv from gnomAD)
 
     if files[0][-3:].lower() == 'csv':
         print("List of CSV files detected.")
-        vars = retrieve_csv_vars(gain.name, csvs, filter_str='missense_variant',with_resid=True)
+        vars = retrieve_csv_vars(gain.name, files, filter_str='missense_variant',with_resid=True)
     else:
         print("This should be a list of JSON Files.")
         v_dict = retrieve_json_vars(gain.name, files,)
@@ -143,7 +146,7 @@ def compose_vars(aGainCollection, files, resid_key, aa_key, fasta_offsets, merge
                 gain_invalid += 1
                 continue
             try:
-                p_label = gain.rev_idx_dir[corrected_resid] # This is the indexing label: i.e. 527 --> "H3.55"
+                p_label = gain.reverse_grn_labels[corrected_resid] # This is the indexing label: i.e. 527 --> "H3.55"
                 gain_valid +=1
             except KeyError:
                 gain_invalid += 1
@@ -190,7 +193,7 @@ def loop2fasta(outfile, itemlist):
             out.write(f">{subdict['name']}\n{subdict['sequence']}\n")
     print("Done with", outfile)
 
-def compose_loop_vars(aGainCollection, files, resid_key, aa_key, fasta_offsets):
+def compose_loop_vars(aGainCollection, aGainIndexing, files, resid_key, aa_key, fasta_offsets):
     # Take the Gain Collection and retrieve variant/mutation info from the files list via extract_variants()
     # Collect these for each GAIN in the aGainCollection.collection and compose them together to enable addressing each individual labeled position.
     # Returns the generalized (aligned) variants/mutations and their respective counts
@@ -206,27 +209,18 @@ def compose_loop_vars(aGainCollection, files, resid_key, aa_key, fasta_offsets):
         positions, gain_pos_dict = extract_variants(gain, files, resid_key)
         fasta_offset = fasta_offsets[idx]
         # Find all vars/mutations whose RESID (fasta) matches the corrected GAIN domain INTERVAL(for fasta resids)
-        within = [pos for pos in positions if pos in range(fasta_offset, fasta_offset + 1 + gain.end - gain.start)]
         #print("DEBUG: vars/mutations within GAIN space\n", sorted(within))
-        idx_dir, _, _, _, _, = gaingrn.scripts.assign.assign_indexing(gain_obj=gain,
-                                            file_prefix=f'../indexing_tmp/x{idx}',
-                                            gain_pdb=gaingrn.scripts.io.find_pdb(gain.name, '../all_pdbs/'),
-                                            template_dir='../r4_template_pdbs',
-                                            template_json='template_data.json',
-                                            gesamt_bin="/home/hildilab/lib/xtal/ccp4-8.0/bin/gesamt",
-                                            hard_cut={"S2":7,"S6":3,"H5":3},
-                                            debug=False,
-                                            patch_gps=True)
+        intervals = aGainIndexing.intervals[idx]
+
         # i.e. 'H2-H3': (13, 20), 'H3-H4': (36, 42), 'H4-H5': (61, 75), 'H5-H6': (87, 89), ...., 'S11-S12': (316, 319), 'S12-S13': (327, 329)}
-        i_loc, _ = get_loop_stats(idx_dir, gain.sequence)
+        i_loc, _ = get_loop_stats(intervals, gain.sequence)
         # Modify this to a position --> loop dict
         loop_locations = {}
         for loop, interval in i_loc.items():
             for i in range(interval[0], interval[1]+1):
                 loop_locations[i+gain.start] = loop
+
         # Evaluate the vars/mutations. If the residue in question (corrected index) is named (i.e. "H6.50"), get its resepective label.
-        print("DEBUG")
-        #[print(i,k) for i,k in loop_locations.items()]
 
         for p_resid in gain_pos_dict.keys():
             # Since fasta_offset maps to the first gain residue (i.e. 2027 with gain.start being 459), an offset needs to be set by the difference
@@ -272,3 +266,158 @@ def json2text(j:str, mutation_data:dict):
         print("_"*70)
         resid = int(mutation["x"]) # X is the residue ID
         positions.append(resid)
+
+
+def query_position_variants(gen_vars, label, aa_key=None, text_out=None, return_aa=False):
+    # Prints or writes to File the mutations at a specific label position.
+    def tee(file_obj=None, text_string=""):
+        # Selector function similar to UNIX "tee" -> where it prints and - if existing - writes to File.
+        if file_obj is not None:
+            file_obj.write(text_string)
+        print(text_string, end='')
+
+    if text_out is not None: # Initialize TEXT output file if specified. Otherwise construct None
+        text = open(text_out, 'w')
+    else: text = None
+
+    tee(text, f"CANCER GENOME ATLAS MUTATIONS AT POSITION {label.upper()} \nTOTAL: {len(gen_vars[label])} MUTATIONS\n\n")
+
+    rstring=''
+    for var in gen_vars[label]:
+        for key in var.keys():
+            if return_aa and key == 'aa_change':
+                    rlet = var[key][0]
+                    rstring = rstring+rlet
+            tee(text, f"{key.ljust(30)} {var[key]}\n")
+        if aa_key is not None:
+            resid = int(var[aa_key]) # X is the residue ID
+        tee(text, "\n"+"_"*30+"\n")
+    print(label, ",", rstring)
+
+def query_by_criteria(*pairs, sift=None, poly=None, mutation_dict):
+    # Defines a function where key - value pairs will be used to specifically filter criteria to be applied for subselection of mutations.
+    #       i.e. ("consequence", "missense"), ("sift_impact","deleterious")
+    # Scores "sift" and "polyphen" define minimum and maximum values with an operator to determine lower than or higher than $val cutoffs
+    #       i.e. ("sift_score", ">", 0.22) as tuples
+    print("DEBUG:", pairs)
+    def eval_entry(pairs, entry):
+        if pairs is None:
+            return True
+
+        for tup in pairs:
+            if entry[tup[0]] != tup[1]:
+                return False
+        return True
+
+    # Set a custom_func flag indicating if there are custom dependent lambda functions for scores specified
+    custom_func = True
+    if sift is None and poly is None:
+        custom_func = False
+    if sift is None:
+        sift = lambda n: True
+    if poly is None:
+        poly = lambda n: True
+
+        
+    print("DEBUG", custom_func)
+
+    valid_ct = 0
+    out_dict = {}
+    # We want to filter the generalized dictionary by key
+    for ki in mutation_dict.keys():
+        mutation_list = mutation_dict[ki]
+        filtered_mutation_list = []
+        for mutation in mutation_list:
+            # Check the scores first. If there are no scores, but custom functions specified, thats ok. Otherwise, do not consider this entry
+            try: 
+                s = float(mutation["sift_score"])
+                p = float(mutation["polyphen_score"])
+            except:
+                #print("Scores not in Entry...", end ='')
+                if custom_func == True:
+                    continue
+                print("But no score functions specified")
+            if custom_func and not sift(float(mutation["sift_score"])):
+                continue
+            if custom_func and not poly(float(mutation["polyphen_score"])):
+                continue
+            # Here, check the *pairs argument if that matches the specifications.
+            if not eval_entry(pairs, mutation):
+                continue
+            
+            valid_ct += 1
+            filtered_mutation_list.append(mutation)
+        out_dict[ki] = filtered_mutation_list
+    print(f"Found {valid_ct} entries matching criteria.")
+    return out_dict
+
+def compose_y(res_range, sse, count_dict):
+    # extracts counts of mutations / variants from an SSE in the specified residue range
+    y_vals = np.zeros(shape=len(res_range))
+    for i, val in enumerate(res_range):
+        if "." not in sse:
+            k = f"{sse}.{val}"
+        else:
+            k = f"{sse}{val}"
+        try:
+            y_vals[i] = count_dict[k]
+        except:
+            pass
+    return y_vals
+
+def score(m, v, vmax=None, mmax=None):
+    # Main scoring function adapted from Wright et al. 2019; m=mutations, v=SNP variants.
+    if mmax is None:
+        mmax = max(m)
+    if vmax is None:
+        vmax = max(v)
+    return [math.log10( ((m[i]/mmax)+1) / ((v[i]/vmax)+1) ) for i in range(len(m))]      
+
+def plot_segment_enrichment_score(sse, res_range, mutations, variants, scores, savename=None, show=True):
+    fig, ax = plt.subplots(1,3, figsize=(8,2))
+    fig.tight_layout()
+    fig.set_facecolor('w')
+    y_max = max(variants)
+    #xlab = [f"{sse}{p}" for p in res_range][::3]
+    for a in ax:    #ax = plt.subplot(1,3,2)
+        a.spines['top'].set_visible(False)
+        a.spines['right'].set_visible(False)
+        a.spines['bottom'].set_visible(False)
+        a.spines['left'].set_visible(False)
+        a.xaxis.set_minor_locator(MultipleLocator(1)) #AutoMinorLocator())
+        a.xaxis.set_major_locator(FixedLocator([a for a in range(2,100,3)]))#MultipleLocator(3))
+        a.tick_params(which='both', width=2)
+        a.tick_params(which='major', length=8)
+        a.tick_params(which='minor', length=6)
+
+    sse.replace(".","")
+
+    ax[0].set_ylim(-0.2, y_max)
+    ax[0].set_title(f'Cancer Variation ({sse})')
+    ax[0].bar(res_range, mutations, width=1.1, color='silver')  
+
+    ax[1].set_ylim(-0.2, y_max)
+    ax[1].set_title(f'Natural Variation ({sse})')
+    ax[1].bar(res_range, variants, width=1.1, color='silver')
+
+    ax[2].set_title(f'Combined Variation ({sse})')
+    ax[2].hlines(0, min(res_range), max(res_range), color='dimgray', linewidth=0.7)
+    for i in range(len(res_range)):
+        if scores[i] < 0:
+            cx = 'xkcd:blurple'
+        else:
+            cx = 'xkcd:tomato red'
+            if scores[i] > 0.05:
+                label = f'{sse}{res_range[i]}'
+                print(f'{label},{round(scores[i],2)}')
+        ax[2].bar(res_range[i], scores[i], color=cx)
+
+    for a in ax:
+        a.set_xticklabels([f'{sse}.{str(int(v))}' for v in a.get_xticks()], rotation=90)
+    
+    if savename is not None:
+        fig.savefig(savename, bbox_inches='tight')
+    if show:
+        plt.show()
+
+    plt.close(fig)

@@ -711,3 +711,16 @@ def create_compact_indexing(gain_obj, subdomain:str, actual_anchors:dict,
                         break
 
     return indexing_dir, indexing_centers, named_residue_dir, unindexed, split_mode
+
+def add_grn_labels(gain_collection, gain_indexing):
+    # Modifies a GainCollection to have their GainDomain objects contain GRN information resid --> GRN and vice cersa
+    for gain in gain_collection.collection:
+
+        ac = gain.name.split("_")[0].split("-")[0]
+        gain_index = gain_indexing.accessions.index(ac)
+        named_dir = gain_indexing.indexing_dirs[gain_index]
+
+        gain.grn_labels = named_dir
+        gain.reverse_grn_labels = {v: k for k, v in named_dir.items()}
+
+    return gain_collection

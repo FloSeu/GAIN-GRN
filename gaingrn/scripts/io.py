@@ -388,6 +388,37 @@ def label2b(pdbfile, outfile, res2label, clear_b=False):
     open(outfile, 'w').write("".join(newdata))
     print(f"Written residue labels to PDB file CA entries : {outfile}")
 
+def score2b(pdb, outpdb, rev_idx_dir, score_dict):
+    # Write a given score to a PDB file. For this, we need a GAIN that has a corresponding rev_idx_dir to adress label:position
+    with open(pdb) as inpdb:
+        pdb_data = inpdb.readlines()
+
+    new_data = []
+    for line in pdb_data:
+
+        if not line.startswith("ATOM"):
+            new_data.append(line)
+            continue
+
+        resid = int(line[22:26])
+
+        try:
+            position_label = rev_idx_dir[resid] # i.e. "H2.54" account for 0-indexed residues in the dictionary!
+            try: 
+                b = score_dict[position_label]
+            except KeyError:
+                b = 0.0
+
+        except KeyError: 
+            b = -20.0 # negative value for non-structured residues
+
+        new_data.append(line[:61]+"%6.2f"%(b)+line[68:])
+
+    with open(outpdb,"w") as opdb:
+        for line in new_data:
+            opdb.write(line)
+    print("Done.")
+
 def grn2csv(res2label, outfile, target_gain): 
     with open(outfile, "w") as csv:
         csv.write("RESNR,RESNAME,LABEL\n")

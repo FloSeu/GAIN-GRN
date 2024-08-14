@@ -1587,7 +1587,6 @@ class FilterCollection:
         ---------
         None
         '''
-        initial_dict = gaingrn.scripts.io.read_alignment(input_alignment, aln_cutoff)
         out_dict = {}
         for gain in self.collection:
             sse_alignment_row = np.full([aln_cutoff], fill_value='-', dtype='<U1')
@@ -1601,20 +1600,3 @@ class FilterCollection:
             for key in out_dict.keys():
                 f.write(f">{key}\n{''.join(out_dict[key])}\n")
         print(f"Done transforming alignment {input_alignment} to {output_alignment} with SSE data.")
-
-# Loading Helper Class to help with comatibility issues.
-#   Creds to bossylobster https://stackoverflow.com/questions/2121874/python-pickling-after-changing-a-modules-directory
-class RenameUnpickler(pickle.Unpickler):
-    def find_class(self, module, name):
-        renamed_module = module
-        if module == "gain_classes":
-            renamed_module = "gaingrn.scripts.gain_classes"
-
-        return super(RenameUnpickler, self).find_class(renamed_module, name)
-
-def load_compatible(file_obj):
-    return RenameUnpickler(file_obj).load()
-#
-def loads_compatible(pickled_bytes):
-    file_obj = io.BytesIO(pickled_bytes)
-    return load_compatible(file_obj)
