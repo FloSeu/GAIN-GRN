@@ -82,7 +82,7 @@ class MutationAnalysis:
             print("[NOTE]: NO MISMATCHES HAVE BEEN FOUND.")
         print(f"TOTAL MUTATIONS WITHIN GAIN:", self.valid, "\nTOTAL MUTATIONS OUTSIDE GAIN:", self.invalid, "\nTOTAL MUTATIONS:", self.valid+self.invalid)
 
-    def generate_data_array(self):
+    def generate_data_array(self, return_list=False):
         # Returns data in Array form, i.e. for writing to File.
         varmut_arr = [] # list of lists with 3 items to be converted into numpy array later
         for sse in self.segments:
@@ -104,8 +104,10 @@ class MutationAnalysis:
             score_y = gaingrn.scripts.mutation_utils.score(mut_y,var_y)
 
             for i in range(len(x_range)):
-                varmut_arr.append((sse, x_range[i], int(mut_y[i]), int(var_y[i]), score_y[i]))
+                varmut_arr.append([sse, x_range[i], int(mut_y[i]), int(var_y[i]), score_y[i]])
 
+        if return_list:
+            return varmut_arr
         # make the data parseable
         vm_arr = np.array(varmut_arr, dtype = [("segment", str),
                                             ("position", int),

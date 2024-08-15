@@ -80,10 +80,10 @@ def extract_variants(gain, files, resid_key):
     # resid_key : 'x' (json from NCGA) / 'resid' (csv from gnomAD)
 
     if files[0][-3:].lower() == 'csv':
-        print("List of CSV files detected.")
+        #print("List of CSV files detected.")
         vars = retrieve_csv_vars(gain.name, files, filter_str='missense_variant',with_resid=True)
     else:
-        print("This should be a list of JSON Files.")
+        #print("This should be a list of JSON Files.")
         v_dict = retrieve_json_vars(gain.name, files,)
         vars = [mut for mut in v_dict['mutations']]
         # returns a dictionary with a list of dicts, each dict corresponding to a var.
@@ -92,9 +92,7 @@ def extract_variants(gain, files, resid_key):
     for var in vars:
         # The "x" key is the identifying position!
         resid = int(var[resid_key]) 
-        #
         # Here, one can define criteria for skipping said var. For now, use all.
-        #
         # Add the receptor name to the var dictionary
         var["receptor"] = gain.name
 
