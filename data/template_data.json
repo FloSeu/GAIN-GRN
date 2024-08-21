@@ -1,4 +1,20 @@
 {
+          "template_names":{
+                        "A": "A0A2Y9F628-A0A2Y9F628_PHYMC-AGRA3isoformX1-Physeter_macrocephalus",
+                        "C": "A0A7K6E127-A0A7K6E127_9PASS-CELR3protein-Grantiella_picta.", 
+                        "D": "A0A452QRN5-A0A452QRN5_URSAM-AGRD1-Ursus_americanus",
+                        "E1": "A0A2I2YJG7-A0A2I2YJG7_GORGO-AGRE1-Gorilla_gorilla_gorilla", 
+                        "E5": "G1TKX5-G1TKX5_RABIT-AGRE5-Oryctolagus_cuniculus", 
+                        "F5": "A0A7L3N0A5-A0A7L3N0A5_9AVES-AGRF5protein-Oreotrochilus_melanogaster.",
+                        "F4": "W5PQ70-W5PQ70_SHEEP-AGRF4-Ovis_aries", 
+                        "G7": "A0A2K5Y1I7-A0A2K5Y1I7_MANLE-AGRG7-Mandrillus_leucophaeus", 
+                        "L": "A0A452HCU9-A0A452HCU9_9SAUR-AGRL3-Gopherus_agassizii", 
+                        "L4": "A0A7L3KTA8-A0A7L3KTA8_9PASS-AGRL4protein-Drymodes_brunneopygia.",
+                        "V": "A0A6Q2XYK2-A0A6Q2XYK2_ESOLU-AGRV1-Esox_lucius",
+                        "G5b":"A0A6J3IBI5-A0A6J3IBI5_SAPAP-AGRG5-Sapajus_apella",
+                        "G4b": "A0A2I4CCH8-A0A2I4CCH8_9TELE-AGRG4-like-Austrofundulus_limnaeus.",
+                        "E5b":"A0A3P8S994-A0A3P8S994_AMPPE-AGRE5b,duplicate2-Amphiprion_percula"
+                    },
         "type_2_sda_template":{
                         "A1":"A",
                         "A2":"A",  "A3":"A", 

@@ -5,6 +5,7 @@ import os, json, re, glob, shlex, shutil
 from subprocess import PIPE, Popen
 import numpy as np
 import pandas as pd
+import multiprocessing as mp
 
 # executing binaries
 
@@ -57,6 +58,26 @@ def run_logged_command(cmd, logfile=None, outfile=None):
     if outfile is None:
         return outs
     return
+
+def compile_stride_mp_list(pdbs, stride_folder, stride_bin):
+    # Compiles a list of arguments for multithreaded STRIDE execution
+    stride_mp_list = []
+    
+    for pdb in pdbs:
+        pdb_name = pdb.split("/")[-1]
+        name = pdb_name.split("_unrelaxed_")[0]
+        out_file = f"{stride_folder}/{name}.stride"
+        arg = [pdb, out_file, stride_bin]
+        
+        stride_mp_list.append(arg)
+        
+    return stride_mp_list
+
+def execute_stride_mp(stride_mp_list, n_threads=10):
+    # multiprocessed variant wrapper
+    stride_pool = mp.Pool(n_threads)
+    stride_pool.map(run_stride, stride_mp_list)
+    print("Completed mutithreaded creation of STRIDE files!")
 
 #read_write
 
@@ -388,8 +409,36 @@ def label2b(pdbfile, outfile, res2label, clear_b=False):
     open(outfile, 'w').write("".join(newdata))
     print(f"Written residue labels to PDB file CA entries : {outfile}")
 
-def score2b(pdb, outpdb, rev_idx_dir, score_dict):
-    # Write a given score to a PDB file. For this, we need a GAIN that has a corresponding rev_idx_dir to adress label:position
+def score2b(input_pdb, output_pdb, metric):
+    # Write a given metric to a PDB file
+    
+    # line [61:66] = xx.xx b factor
+    # set to zero if not in metric, set to val otherwise
+    with open(input_pdb) as ipdb:
+        data = ipdb.readlines()
+    newdata = []
+    for l in data:
+        if not l.startswith("ATOM"):
+            newdata.append(l)
+            continue
+        
+        resid = int(l[22:26])
+
+        if resid not in metric.keys():
+            l = l[:61]+"00.00"+l[66:]
+            newdata.append(l)
+            continue
+
+        l = l[:61]+f'{metric[resid]:5.2f}'+l[66:]
+        newdata.append(l)
+
+    with open(output_pdb, 'w') as opdb:
+        opdb.write("".join(newdata))
+    
+    print("Done.")
+
+def grn_score2b(pdb, outpdb, rev_idx_dir, score_dict):
+    # Write a given score to a PDB file. For this, we need a GAIN that has a corresponding rev_idx_dir to adress GAIN_GRN label:position
     with open(pdb) as inpdb:
         pdb_data = inpdb.readlines()
 
@@ -489,32 +538,7 @@ def read_gesamt_pairs(gesamtfile, return_unmatched=True):
     return template_pairs, mobile_pairs
 
 
-def find_anchor_matches(file, anchor_dict,  isTarget=False, return_unmatched=False, debug=False):
-    # Takes a gesamt file and an anchor dictionary either of the target or the template and returns the matched other residue with the pairwise distance
-    # as a dictionary: {'H1': (653, 1.04) , ...}
-    template_pairs, mobile_pairs = read_gesamt_pairs(file, return_unmatched=return_unmatched)
-    # Find the closest residue to template anchors
-    matched_residues = {}
-    if not isTarget:
-        parsing_dict = template_pairs
-    else:
-        parsing_dict = mobile_pairs
 
-    if debug: print(f"[DEBUG]: find_anchor_matches: {file = }, {parsing_dict = }")
-    try:
-        start, end = min(parsing_dict.keys()), max(parsing_dict.keys())
-    except:
-        print("NOT MATCHED:", parsing_dict, file)
-        return {}
-    #start, end = min(parsing_dict.keys()), max(parsing_dict.keys())
-    for anchor_name, anchor_res in anchor_dict.items():
-        # If the anchor lies outside the aligned segments, pass empty match (None, None)
-        if anchor_res < start or anchor_res > end:
-            matched_residues[anchor_name] = (None, None)
-            continue
-        matched_residues[anchor_name] = parsing_dict[anchor_res]
-
-    return matched_residues
 
 
 def save2json(distances, names, savename):
@@ -590,3 +614,13 @@ def grab_selection(parse_string, stride_path, pdb_list, sequences, profile_path,
     print(f"Copied {len(sub_pdbs)} PDB files, {len(sub_strides)} STRIDE files,",
           f" {len(sub_profiles)} Profiles and {len(sub_seqs)} Sequences",
           f"for Selection {parse_string}")
+
+def get_gain(identifier, a_gain_collection, return_index=False):
+    # pick a GainDomain object with an identifier from a GainCollection objects
+    for i, gain in enumerate(a_gain_collection.collection):
+        if identifier in gain.name:
+            if return_index:
+                return gain, i
+            return gain
+    print("ERROR: GAIN not found!")
+    return None

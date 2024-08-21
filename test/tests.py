@@ -106,7 +106,13 @@ class TestFunctions(unittest.TestCase):
         for f in glob.glob("./hpkd1/*"):
             os.remove(f)
         os.rmdir("./hpkd1")
-
+    
+    def test_get_template_information(self):
+        # Test template_utils via getting infomation of a template.
+        valid_collection = pd.read_pickle("../data/valid_collection.pkl")
+        centers, center_quality, aln_indices, pdb_centers= gaingrn.scripts.template_utils.get_template_information(identifier='A0A6G1Q0B9', gain_collection=valid_collection, subdomain='a')
+        self.assertTrue(len(centers.keys()) == 6)
+    
 class TestClasses(unittest.TestCase):
     # Test Class instance generation and in that regard, also the underlying functions
 

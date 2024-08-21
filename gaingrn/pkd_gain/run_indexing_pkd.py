@@ -43,7 +43,7 @@ if __name__ == '__main__':
     header, matrix = stal_indexing.construct_data_matrix(overwrite_gps=True, unique_sse=False)
     stal_indexing.data2csv(header, matrix, "../../data/pkd/pkd_indexing.NEW.csv")
 
-    with open("../../data/pkd/pkd_indexing.NEW.pkl","wb") as save:
+    with open("../../data/pkd/pkd_indexing.pkl","wb") as save:
         pickle.dump(stal_indexing, save)
 
     print("Done creating and saving pkd_indexing.pkl")

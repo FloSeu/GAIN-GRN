@@ -329,3 +329,10 @@ def plot_logo_segment(dataframe, sse, threshold=0.05, savename=None):
 
     plt.savefig(savename, bbox_inches='tight')
     plt.close(fig)
+
+def count_receptors(gain_collection):
+    # returns a list of the the receptor type for every GainDomain in the Colleciton and a dictionary with receptor:counts items
+    receptor_list = [gaingrn.scripts.io.get_agpcr_type(gain.name) for gain in gain_collection.collection]
+    receptors, counts  = np.unique(receptor_list, return_counts=True)
+    receptor_counts = dict(zip(receptors,counts))
+    return receptor_list, receptor_counts
