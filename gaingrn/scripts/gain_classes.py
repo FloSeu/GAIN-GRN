@@ -1,4 +1,5 @@
-# gain_classes.py
+## scipts/gain_classes.py
+# Contains different classes of GainDomains and related collections
 
 # Object structure:
 
@@ -7,8 +8,6 @@
 #                   |- ...
 import matplotlib.pyplot as plt
 import numpy as np
-import io
-import pickle
 
 import gaingrn.scripts.alignment_utils
 import gaingrn.scripts.io

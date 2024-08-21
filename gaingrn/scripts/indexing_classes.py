@@ -1,4 +1,7 @@
+## scripts/indexing_classes.py
 # These are indexing classes for the GPCRDB-specific indexing of multiple GAIN domains.
+
+# Older classes like GPCRDBIndexing and Indexing are not used, since they were related to alignment-based indexing methods.
 
 import numpy as np
 import gaingrn.scripts.assign

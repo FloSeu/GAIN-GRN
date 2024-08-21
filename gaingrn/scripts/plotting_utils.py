@@ -1,3 +1,6 @@
+## scripts/plotting_utils.py
+# contains different utilities for plotting
+
 from matplotlib import pyplot as plt
 from matplotlib.ticker import (MultipleLocator, FixedLocator)
 import numpy as np

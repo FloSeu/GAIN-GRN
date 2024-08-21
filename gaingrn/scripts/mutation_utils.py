@@ -1,10 +1,10 @@
-# mutation_utils.py
+## scritps/mutation_utils.py
 # Functions for Analysis of Cancer mutations and natural variants of the GAIN-GRN dataset.
+
 import re, json, math
 import numpy as np
 from matplotlib import pyplot as plt
-from matplotlib.ticker import (MultipleLocator, AutoMinorLocator, FixedLocator)
-import gaingrn.scripts.io
+from matplotlib.ticker import (MultipleLocator, FixedLocator)
 import gaingrn.scripts.assign
 
 def retrieve_json_vars(name,jsons):

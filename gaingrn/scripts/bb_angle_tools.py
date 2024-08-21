@@ -1,3 +1,6 @@
+## scripts/bb_angle_tools.py
+# Contains functions for handling backbone-angle related operations, which are used to find and denote backbone angle outliers in the STRIDE files.
+
 from cmath import phase, rect
 from math import atan2, cos, degrees, radians, sin
 

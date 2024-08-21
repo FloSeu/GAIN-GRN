@@ -1,3 +1,6 @@
+## scritps/alignment_utils.py
+# Contains functions for handling alignment-realted operations.
+
 from gaingrn.scripts.structure_utils import find_the_start
 import gaingrn.scripts.alignment_utils
 import gaingrn.scripts.io

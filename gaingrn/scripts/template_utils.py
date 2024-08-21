@@ -1,3 +1,4 @@
+## scripts/template_utils.py
 # Functions for finding a template via GainDomain subselection and GESAMT pairwise structural alignments.
 import glob, os, re, shutil, math
 import numpy as np
@@ -201,63 +202,6 @@ def cluster_k_means(matrix, list_of_gain_obj, n_cluster=9, plot=False):
     cluster_intervals = [(cluster_starts[k], cluster_starts[k+1]) for k in range(n_cluster-1)]
     cluster_intervals.append((cluster_starts[-1], n_struc))
     return reordered_matrix, cluster_intervals, reordered_names
-
-def plot_matrix(distances, title='', savename=None):
-    # plot the RMSD matrix
-    fig = plt.figure(figsize=[6,4])
-    fig.set_facecolor('w')
-    plt.imshow(distances, cmap='Greys')
-    plt.title(title)
-    cbar = plt.colorbar()
-    cbar.set_label('RMSD [$\AA$]')
-    if savename is not None:
-        plt.savefig(f'{savename}.png',dpi=300)
-    else:
-        plt.show()
-    del fig
-
-def plot_heirarchy(distances, groupname='', savename=None):
-    # plots the heirarchical clustering to assess groups of structures.
-    reduced_distances = squareform(distances, checks=False)
-    linkage = scipy.cluster.hierarchy.linkage(reduced_distances, method='average')
-    fig = plt.figure(figsize=[18,4], facecolor='w')
-    plt.title(f'RMSD Average linkage hierarchical clustering: {groupname}')
-    _ = scipy.cluster.hierarchy.dendrogram(linkage, count_sort='descendent', show_leaf_counts=True, leaf_font_size=3)
-    if savename is not None:
-        plt.savefig(f"{savename}.png", dpi=200)
-    else:
-        plt.show()
-    del fig
-
-def plot_pca(distance_matrix, cluster_intervals, n_components, name, plot3D=False, save=True):
-    # Creates and plots a Principal component analysis for assessing variance in between respective clusters
-    colorlist = ['blue','red','green','yellow','orange','purple','forestgreen','limegreen','firebrick']
-    #X = center_distance_matrix
-    X = distance_matrix
-    pca = PCA(n_components=n_components)
-    pca.fit(X)
-    print("Explained variance ratio:", pca.explained_variance_ratio_)
-    #print(pca.singular_values_)
-    X_r = pca.fit(X).transform(X)
-    print(X_r.shape)
-
-    fig = plt.figure(figsize=[5,5])
-    fig.set_facecolor('w')
-    if plot3D:
-        ax = ax = fig.add_subplot(projection='3d')
-        for i, interval in enumerate(cluster_intervals):
-            ax.scatter(X_r[interval[0]:interval[1],0], X_r[interval[0]:interval[1],1], X_r[interval[0]:interval[1],2], marker='o', s=8, c=colorlist[i])
-    else:
-        ax = fig.add_subplot()
-        for i, interval in enumerate(cluster_intervals):
-            ax.scatter(X_r[interval[0]:interval[1],0], X_r[interval[0]:interval[1],1], marker='o', s=8, c=colorlist[i])
-    ax.set_title(f'PCA of MiniBatchKMeans - {name}')
-    ax.set_xlabel('PC 0')
-    ax.set_ylabel('PC 1')
-    if plot3D:
-        ax.set_zlabel('PC 2')
-    if save:
-        plt.savefig(f'{name}_pca.png', dpi=300)
 
 def match_gain2subdomain_template(gain_idx, template_centers, gesamt_folder, penalty=None, debug=False):
     '''

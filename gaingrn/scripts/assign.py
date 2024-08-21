@@ -1,3 +1,6 @@
+## scritps/assign.py
+# contains the main function for assigning the GAIN-GRN indexing on single GAIN domains or whole sets of GAIN domains
+
 import glob
 import json
 import os

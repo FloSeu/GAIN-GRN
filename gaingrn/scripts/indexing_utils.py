@@ -1,4 +1,4 @@
-## indexing_utils.py
+## scripts/indexing_utils.py
 # Contains functions for handling and analyzing the completely indexed dataset via StAlIndexing class instances
 
 import logomaker

@@ -18,9 +18,8 @@ def find_pdb(name, pdb_folder):
     return target_pdb
 
 if __name__ == '__main__':
-    with open("../data/valid_collection.NEW.pkl", "rb") as vc_pkl:
-        valid_collection = load_compatible(vc_pkl)
-    print(glob.glob('../data/template_pdbs/*pdb'))
+    valid_collection = np.load("../data/valid_collection.pkl", allow_pickle=True)
+
     stal_indexing = StAlIndexing(valid_collection.collection, 
                                 prefix="../../test_stal_indexing/stal_", 
                                 pdb_dir='../../all_pdbs',  
@@ -40,4 +39,4 @@ if __name__ == '__main__':
     with open("../data/stal_indexing.NEW.pkl","wb") as save:
         pickle.dump(stal_indexing, save)
 
-    print("Done creating and saving stal_indexing.pkl")
+    print("Done creating and saving stal_indexing.NEW.pkl")

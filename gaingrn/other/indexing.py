@@ -1,3 +1,5 @@
+## scripts/indexing.py
+
 import numpy as np
 
 def create_indexing(gain_domain, anchors:dict, anchor_occupation:dict, anchor_dict:dict, outdir=None, offset=0, silent=False, split_mode='single',debug=False):
