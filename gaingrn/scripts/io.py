@@ -322,6 +322,16 @@ def read_quality(jal):
 
     return cut_data
 
+def read_plddt_tsv(file='all_plddt.tsv'):
+    # Load the pLDDT file into a dictionary
+    plddt_dir = {}
+    with open(file) as f:
+        data = [l.strip() for l in f.readlines()[1:]]
+        for l in data:
+            i,v  = tuple(l.split("\t"))
+            plddt_dir[i] = [float(val) for val in v.split(",")]
+    return plddt_dir
+
 def find_pdb(name, pdb_folder):
     # Finds a PDB within a directory containing the UniProtKB Accession of the provided Gain name.
     identifier = name.split("-")[0]

@@ -4,12 +4,12 @@ import os
 from types import SimpleNamespace
 import numpy as np
 
-from gaingrn.scripts.io import find_anchor_matches, get_agpcr_type, read_gesamt_pairs, run_logged_command
+from gaingrn.scripts.io import get_agpcr_type, read_gesamt_pairs, run_logged_command
 from gaingrn.scripts.structure_utils import get_pdb_extents
-from gaingrn.scripts.template_utils import find_best_templates
+from gaingrn.scripts.template_utils import find_center_matches, find_best_templates
 
 
-def create_subdomain_indexing(gain_obj, subdomain, actual_anchors, threshold=3, padding=1, split_mode='single', silent=False,  debug=False):
+def create_subdomain_indexing(gain_obj, subdomain, actual_centers, threshold=3, padding=1, split_mode='single', silent=False,  debug=False):
     ''' 
     Makes the indexing list, this is NOT automatically generated, since we do not need this for the base dataset
     Prints out the final list and writes it to file if outdir is specified
@@ -18,10 +18,10 @@ def create_subdomain_indexing(gain_obj, subdomain, actual_anchors, threshold=3, 
     ----------
     gain_obj: GainDomain object, requred
         GainDomain object with corresponding parameters
-    actual_anchors : dict, required
-        Dictionary of anchors with each corresponding to the matched template anchor. This should already be the residue of this GAIN domain
-    anchor_dict : dict, required
-        Dictionary where each anchor index is assigned a name (H or S followed by a greek letter for enumeration)
+    actual_centers : dict, required
+        Dictionary of centers with each corresponding to the matched template center. This should already be the residue of this GAIN domain
+    center_dict : dict, required
+        Dictionary where each center index is assigned a name (H or S followed by a greek letter for enumeration)
     offset : int,  optional (default = 0)
         An offsset to be incorporated (i.e. for offsetting model PDBs against UniProt entries)
     silent : bool, optional (default = False)
@@ -82,25 +82,25 @@ def create_subdomain_indexing(gain_obj, subdomain, actual_anchors, threshold=3, 
         if coiled_residues == [] and outlier_residues == []:
             raise IndexError(f"No Break residues in between to Anchors:\n\t{stored_res = }\n\t{new_res = }\n\t{sse = }")
 
-        # b) check first if there is a Coiled residue in between the two conflicting anchors
+        # b) check first if there is a Coiled residue in between the two conflicting centers
         for coiled_res in coiled_residues:
             if stored_res < coiled_res and coiled_res < new_res:
                 hasCoiled = True
             if new_res < coiled_res and coiled_res < stored_res:
                 hasCoiled = True
 
-        # c) check if there is an outlier residue in between the two conflicting anchors
+        # c) check if there is an outlier residue in between the two conflicting centers
         for outlier_res in outlier_residues:
             if stored_res < outlier_res and outlier_res < new_res:
                 hasOutlier = True
             if new_res < outlier_res and outlier_res < stored_res:
                 hasOutlier = True
 
-        # If there are no breaks, take the anchor with higher occupation, discard the other.
+        # If there are no breaks, take the center with higher occupation, discard the other.
         if hasCoiled == False and hasOutlier == False:
             raise IndexError(f"No Break residues in between to Anchors:\n\t{stored_res = }\n\t{new_res = }\n\t{sse = }\n\t{coiled_res = }\n\t{outlier_res = }")
 
-        # Check if there is a break residue in between the two conflicting anchors
+        # Check if there is a break residue in between the two conflicting centers
         adjusted_break_residues = [res+sse[0] for res in break_residues]
 
         seg_stored = terminate(sse, stored_res, adjusted_break_residues)
@@ -108,8 +108,8 @@ def create_subdomain_indexing(gain_obj, subdomain, actual_anchors, threshold=3, 
 
         if not silent: print(f"[NOTE] disambiguate_segments: Split the segment into: {seg_stored = }, {seg_new = }")
 
-        stored_name_list, stored_cast_values = create_name_list(seg_stored, stored_res, res2anchor[stored_res])
-        new_name_list, new_cast_values = create_name_list(seg_new, new_res, res2anchor[new_res])
+        stored_name_list, stored_cast_values = create_name_list(seg_stored, stored_res, res2center[stored_res])
+        new_name_list, new_cast_values = create_name_list(seg_new, new_res, res2center[new_res])
 
         if not silent: print(f"[NOTE] disambiguate_segments: Successful SSE split via BREAK.")
         return [(seg_stored, stored_name_list, stored_cast_values),(seg_new, new_name_list, new_cast_values)]
@@ -121,11 +121,11 @@ def create_subdomain_indexing(gain_obj, subdomain, actual_anchors, threshold=3, 
 
         nom_list[sse_x[0] : sse_x[1]+1] = name_list
         indexing_dir[cast_values[2]] = cast_values[0] # all to sse 
-        indexing_centers[cast_values[2]+".50"] = cast_values[1] # sse_res where the anchor is located
+        indexing_centers[cast_values[2]+".50"] = cast_values[1] # sse_res where the center is located
 
         return nom_list, indexing_dir, indexing_centers
 
-    if debug: print(f"[DEBUG] create_subdomain_indexing: passed arguments:\n\t{gain_obj.name = }\n\t{subdomain = }\n\t{actual_anchors = }")
+    if debug: print(f"[DEBUG] create_subdomain_indexing: passed arguments:\n\t{gain_obj.name = }\n\t{subdomain = }\n\t{actual_centers = }")
     ### END OF FUNCTION BLOCK
     # Initialize Dictionaries
     indexing_dir = {}
@@ -133,9 +133,9 @@ def create_subdomain_indexing(gain_obj, subdomain, actual_anchors, threshold=3, 
     named_residue_dir = {}
     unindexed = []
 
-    # Invert the actual anchors dict to match the GAIN residue to the named anchor
-    res2anchor = {v[0]:k for k,v in actual_anchors.items()} # v is a tuple  (residue, distance_to_template_center_residue)
-    if debug: print(f"[DEBUG] create_subdomain_indexing: {res2anchor = }")
+    # Invert the actual centers dict to match the GAIN residue to the named center
+    res2center = {v[0]:k for k,v in actual_centers.items()} # v is a tuple  (residue, distance_to_template_center_residue)
+    if debug: print(f"[DEBUG] create_subdomain_indexing: {res2center = }")
     # One-indexed Indexing list for each residue, mapping for the actual residue index
     nom_list = np.full(shape=[gain_obj.end+1], fill_value='      ', dtype='<U7')
 
@@ -155,30 +155,30 @@ def create_subdomain_indexing(gain_obj, subdomain, actual_anchors, threshold=3, 
         if debug:print(f"[DEBUG] create_subdomain_indexing : \nNo. {idx+1}: {sse}\n{first_res = }, {last_res = }")
 
         for sse_res in range(first_res, last_res+1):
-            # Find the anchor within, since the anchors here are already aligned!
+            # Find the center within, since the centers here are already aligned!
 
-            if sse_res in res2anchor.keys():
+            if sse_res in res2center.keys():
 
                 if exact_match == False:
-                    if debug: print(f"ANCHOR FOUND: @ {sse_res = }, {res2anchor[sse_res]}")
-                    sse_name = res2anchor[sse_res]
-                    #stored_anchor = sse_name
+                    if debug: print(f"ANCHOR FOUND: @ {sse_res = }, {res2center[sse_res]}")
+                    sse_name = res2center[sse_res]
+                    #stored_center = sse_name
                     stored_res = sse_res
                     name_list, cast_values = create_name_list([first_res, last_res], sse_res, sse_name)
                     # name_list has the assignment for the SSE, cast_values contains the passed values for dict casting
                     exact_match = True
                     continue
                 ''' HERE is an ANCHOR AMBIGUITY CASE
-                   There might occur the case where two anchors are within one SSE, 
-                   check for present break residues in between the two anchors, 
+                   There might occur the case where two centers are within one SSE, 
+                   check for present break residues in between the two centers, 
                     > If there are some, eliminate that residue and break the SSE it into two.
-                        >   If there are multiple break residues, use the one closest to the lower occupancy anchor
-                    > If there is no break residue the anchor with highest occupation wins. '''
+                        >   If there are multiple break residues, use the one closest to the lower occupancy center
+                    > If there is no break residue the center with highest occupation wins. '''
                 ambiguous = True
                 if not silent:
                             print(f"[NOTE] GainDomain.create_indexing : ANCHOR AMBIGUITY in this SSE:")
                             print(f"\n\t {sse_res = },")
-                            print(f"\n\t {res2anchor[sse_res] = },")
+                            print(f"\n\t {res2center[sse_res] = },")
 
                 coiled_residues = []
                 outlier_residues = []
@@ -210,16 +210,16 @@ def create_subdomain_indexing(gain_obj, subdomain, actual_anchors, threshold=3, 
                 for entryidx, entry in enumerate(name_2):
                     named_residue_dir[entry] = entryidx+sse_adj[0]
 
-        # if no exact match is found, the anchor does not exist in this domain
+        # if no exact match is found, the center does not exist in this domain
         if exact_match == False:
             if debug: print("Anchors not found in this sse", idx, sse)
-            # expand anchor detection to +1 and -1 of SSE interval
-            for res in res2anchor:
+            # expand center detection to +1 and -1 of SSE interval
+            for res in res2center:
                 if res == sse[0]-padding or res == sse[1]+padding:
                     fuzzy_match = True
-                    if not silent: print(f"[DEBUG] GainDomain.create_indexing : Interval search found anchor @ Residue {res}")
-                    # Find the closest residue to the anchor column index. N-terminal wins if two residues tie.
-                    name_list, cast_values = create_name_list([first_res, last_res], res, res2anchor[res])
+                    if not silent: print(f"[DEBUG] GainDomain.create_indexing : Interval search found center @ Residue {res}")
+                    # Find the closest residue to the center column index. N-terminal wins if two residues tie.
+                    name_list, cast_values = create_name_list([first_res, last_res], res, res2center[res])
 
         # Finally, if matched, write the assigned indexed segment to the array
 
@@ -235,7 +235,7 @@ def create_subdomain_indexing(gain_obj, subdomain, actual_anchors, threshold=3, 
                     named_residue_dir[entry] = namidx+sse_adj[0]
         else: # If there is an unadressed SSE with length 3 or more, then add this to unindexed.
                 if sse[1]-sse[0] >= threshold:
-                    if debug: print(f"[DEBUG] GainDomain.create_indexing : No anchor found! \n {first_res = } \ns{last_res = }")
+                    if debug: print(f"[DEBUG] GainDomain.create_indexing : No center found! \n {first_res = } \ns{last_res = }")
                     unindexed.append(first_res)
     # [NOTE] GPS patching moved to central function -> assign_indexing      
     return indexing_dir, indexing_centers, named_residue_dir, unindexed
@@ -307,31 +307,31 @@ def assign_indexing(gain_obj:object, file_prefix: str, gain_pdb: str, template_d
     run_logged_command(a_cmd_string, logfile=None, outfile=f'{file_prefix}_sda.out')
     run_logged_command(b_cmd_string, logfile=None, outfile=f'{file_prefix}_sdb.out')
 
-    target_a_centers = find_anchor_matches(f'{file_prefix}_sda.out', a_centers, isTarget=False, debug=debug)
-    target_b_centers = find_anchor_matches(f'{file_prefix}_sdb.out', b_centers, isTarget=False, debug=debug)
+    target_a_centers = find_center_matches(f'{file_prefix}_sda.out', a_centers, isTarget=False, debug=debug)
+    target_b_centers = find_center_matches(f'{file_prefix}_sdb.out', b_centers, isTarget=False, debug=debug)
     a_template_matches, _ = read_gesamt_pairs(f'{file_prefix}_sda.out', return_unmatched=False)
     b_template_matches, _ = read_gesamt_pairs(f'{file_prefix}_sdb.out', return_unmatched=False)
     if debug:
-        print(f"[DEBUG] assign_indexing: The matched anchors of the target GAIN domain are:{target_a_centers = }\n\t{target_b_centers = }")
+        print(f"[DEBUG] assign_indexing: The matched centers of the target GAIN domain are:{target_a_centers = }\n\t{target_b_centers = }")
 
     a_out = list(create_compact_indexing(gain_obj, 'a', target_a_centers, threshold=3, outlier_cutoff=outlier_cutoff,
                                          template_matches=a_template_matches,
                                          template_extents=tdata.element_extents[best_a],
-                                         template_anchors=tdata.sda_centers[best_a],
-                                         hard_cut=hard_cut, prio=tdata.anchor_priority, pseudocenters=pseudocenters,
+                                         template_centers=tdata.sda_centers[best_a],
+                                         hard_cut=hard_cut, prio=tdata.center_priority, pseudocenters=pseudocenters,
                                          debug=debug) )
     b_out = list(create_compact_indexing(gain_obj, 'b', target_b_centers, threshold=1, outlier_cutoff=outlier_cutoff,
                                          template_matches=b_template_matches,
                                          template_extents=tdata.element_extents[best_b],
-                                         template_anchors=tdata.sdb_centers[best_b],
-                                         hard_cut=hard_cut, prio=tdata.anchor_priority, pseudocenters=pseudocenters,
+                                         template_centers=tdata.sdb_centers[best_b],
+                                         hard_cut=hard_cut, prio=tdata.center_priority, pseudocenters=pseudocenters,
                                          debug=debug) )
     highest_split = max([a_out[4], b_out[4]])
 
     # Patch the GPS into the output of the indexing methods.
     if patch_gps:
         b_gps = tdata.sdb_gps_res[best_b]
-        gps_matches = find_anchor_matches(f'{file_prefix}_sdb.out', b_gps, isTarget=False, debug=debug)
+        gps_matches = find_center_matches(f'{file_prefix}_sdb.out', b_gps, isTarget=False, debug=debug)
         gps_resids = sorted([v[0] for v in gps_matches.values() if v[0] is not None])
         if debug:
             print(f"[DEBUG] assign_indexing: Attempting Patching GPS\n\t{b_gps = }\n\t{gps_matches = }\n\t{gps_resids = }")
@@ -383,8 +383,8 @@ def mp_assign_indexing(mp_args:list):
     return [intervals, indexing_centers, indexing_dir, unindexed, params, mp_args[8]]
 
 
-def create_compact_indexing(gain_obj, subdomain:str, actual_anchors:dict,
-                            template_matches=None, template_extents=None, template_anchors=None,
+def create_compact_indexing(gain_obj, subdomain:str, actual_centers:dict,
+                            template_matches=None, template_extents=None, template_centers=None,
                             threshold=3,  outlier_cutoff=10.0, hard_cut=None, prio=None, pseudocenters=None, debug=False):
     ''' 
     Makes the indexing list, this is NOT automatically generated, since we do not need this for the base dataset
@@ -396,14 +396,14 @@ def create_compact_indexing(gain_obj, subdomain:str, actual_anchors:dict,
         GainDomain object with corresponding parameters
     subdomain: character, required
         the name of the subdomain "a", "b"
-    actual_anchors : dict, required
-        Dictionary of anchors with each corresponding to the matched template anchor. This should already be the residue of this GAIN domain
+    actual_centers : dict, required
+        Dictionary of centers with each corresponding to the matched template center. This should already be the residue of this GAIN domain
     template_matches : dict, optional
         Dictionary of int->int matches of every template residue to the target. Needs to be provided along $template_extents
     template_extent : dict, optional
         Dictionary of the residue extents of the Template elements. These are TEMPLATE residue indices, not the target ones!
-    anchor_dict : dict, required
-        Dictionary where each anchor index is assigned a name (H or S followed by a greek letter for enumeration)
+    center_dict : dict, required
+        Dictionary where each center index is assigned a name (H or S followed by a greek letter for enumeration)
     offset : int,  optional (default = 0)
         An offsset to be incorporated (i.e. for offsetting model PDBs against UniProt entries)
     silent : bool, optional (default = False)
@@ -423,27 +423,27 @@ def create_compact_indexing(gain_obj, subdomain:str, actual_anchors:dict,
         A list of detected SSE that remain unindexed.
     '''
     # recurring functional blocks used within this function
-    def split_segments(sse:list, found_anchors:list, res2anchor:dict, coiled_residues:list, outlier_residues:list, hard_cut=None, debug=debug):
-        # Split a segment with multiple occurring anchors into its respective segments.
+    def split_segments(sse:list, found_centers:list, res2center:dict, coiled_residues:list, outlier_residues:list, hard_cut=None, debug=debug):
+        # Split a segment with multiple occurring centers into its respective segments.
         # Use coiled_residues first, then outlier_residues with lower priority
         # Returns a value matching the line of splitting used (0 = best, 3 = worst).
         if debug:
-            print(f"[DEBUG] split_segments: called with \n\t{hard_cut = }\n\t{found_anchors = }\n\telements: {[res2anchor[i] for i in found_anchors]}")
-        n_segments = len(found_anchors)
-        sorted_anchors = sorted(found_anchors) # Just in case, order the anchors
+            print(f"[DEBUG] split_segments: called with \n\t{hard_cut = }\n\t{found_centers = }\n\telements: {[res2center[i] for i in found_centers]}")
+        n_segments = len(found_centers)
+        sorted_centers = sorted(found_centers) # Just in case, order the centers
         n_boundaries = {}
         c_boundaries = {}
 
         # Start of first segment, end os last segment are pre-defined.
-        n_boundaries[sorted_anchors[0]] = sse[0]
-        c_boundaries[sorted_anchors[-1]] = sse[1]
+        n_boundaries[sorted_centers[0]] = sse[0]
+        c_boundaries[sorted_centers[-1]] = sse[1]
 
         for i in range(n_segments-1):
-            n_anchor, c_anchor = sorted_anchors[i], sorted_anchors[i+1]
+            n_center, c_center = sorted_centers[i], sorted_centers[i+1]
             hard_cut_flag = False
             # Find breaker residue in between these two segments:
-            coiled_breakers = [r for r in coiled_residues if r > n_anchor and r < c_anchor]
-            outlier_breakers = [r for r in outlier_residues if r > n_anchor and r < c_anchor]
+            coiled_breakers = [r for r in coiled_residues if r > n_center and r < c_center]
+            outlier_breakers = [r for r in outlier_residues if r > n_center and r < c_center]
 
             # By convention, split the along the most N-terminal occurence of a break residue.
             # Here is the logic to detect what is used for breaking up the segment. The order of checks:
@@ -471,32 +471,32 @@ def create_compact_indexing(gain_obj, subdomain:str, actual_anchors:dict,
                     print(f"[WARNING] No breakers, but Glycine detected in the target segment. Using this for splitting:\n\t{segment_sequence = }\n\t{sse[0]}-{sse[1]} | G@{breakers[0]}")
                 else:
                     split_mode = 4
-                    # Third line of splitting: Check if there is a hard cut provided in hard_cut for one of the anchors (S7?). If so, break it after n residues,
+                    # Third line of splitting: Check if there is a hard cut provided in hard_cut for one of the centers (S7?). If so, break it after n residues,
                     # keep all residues in the segment (the breaker is added to the C-terminal segment)
-                    if hard_cut is not None and res2anchor[n_anchor] in hard_cut.keys():
+                    if hard_cut is not None and res2center[n_center] in hard_cut.keys():
                         hard_cut_flag = True
-                        breakers = [ n_anchor+hard_cut[res2anchor[n_anchor]] ]
-                        print(f"[WARNING] HARD CUT BREAKER @ {breakers[0]} between {res2anchor[n_anchor]} | {res2anchor[c_anchor]}")
+                        breakers = [ n_center+hard_cut[res2center[n_center]] ]
+                        print(f"[WARNING] HARD CUT BREAKER @ {breakers[0]} between {res2center[n_center]} | {res2center[c_center]}")
                     else:
                         split_mode = 5
                         # Last line of splitting: prio
                         if debug:
-                            print("[DEBUG]: lst line of splitting invoked. Using anchor priorities to override ambiuguity")
+                            print("[DEBUG]: lst line of splitting invoked. Using center priorities to override ambiuguity")
                         if prio is None:
-                            print(f"[ERROR]: No breakers and no Proline detected between {n_anchor = }:{res2anchor[n_anchor]} {c_anchor = }:{res2anchor[c_anchor]}\n{segment_sequence = }")
-                            raise IndexError(f"No Breaker detected in multi-anchor ordered segment: \n\t{sse[0]}-{sse[1]}\n\t{gain_obj.name} Check this.")
+                            print(f"[ERROR]: No breakers and no Proline detected between {n_center = }:{res2center[n_center]} {c_center = }:{res2center[c_center]}\n{segment_sequence = }")
+                            raise IndexError(f"No Breaker detected in multi-center ordered segment: \n\t{sse[0]}-{sse[1]}\n\t{gain_obj.name} Check this.")
                         if prio is not None:
-                            priorities = [ prio[res2anchor[a]] for a in found_anchors ]
-                            best_anchor = found_anchors[np.argmax(priorities)]
-                            return {best_anchor:sse}, split_mode
+                            priorities = [ prio[res2center[a]] for a in found_centers ]
+                            best_center = found_centers[np.argmax(priorities)]
+                            return {best_center:sse}, split_mode
 
-            c_boundaries[n_anchor] = breakers[0]-1
-            n_boundaries[c_anchor] = breakers[0]+1
+            c_boundaries[n_center] = breakers[0]-1
+            n_boundaries[c_center] = breakers[0]+1
             # Include the hard cut residue in the C-terminal element (decrement n-terminal boundary by 1)
             if hard_cut_flag:
-                n_boundaries[c_anchor] -= 1
+                n_boundaries[c_center] -= 1
         # Merge the segments and return them
-        segments = {a:[n_boundaries[a], c_boundaries[a]] for a in sorted_anchors}
+        segments = {a:[n_boundaries[a], c_boundaries[a]] for a in sorted_centers}
         return segments, split_mode
 
     def create_name_list(sse, ref_res, sse_name):
@@ -513,20 +513,20 @@ def create_compact_indexing(gain_obj, subdomain:str, actual_anchors:dict,
 
         nom_list[sse_x[0] : sse_x[1]+1] = name_list
         indexing_dir[cast_values[2]] = cast_values[0] # all to sse 
-        indexing_centers[cast_values[2]+".50"] = cast_values[1] # sse_res where the anchor is located
+        indexing_centers[cast_values[2]+".50"] = cast_values[1] # sse_res where the center is located
 
         return nom_list, indexing_dir, indexing_centers
 
-    def truncate_segment(outliers:dict, anchor_res:int, sse:list, outlier_cutoff:float, debug=False):
+    def truncate_segment(outliers:dict, center_res:int, sse:list, outlier_cutoff:float, debug=False):
         if debug:
-            print(f"[DEBUG] INVOKED create_compact_indexing.truncate_segment:\n\t{outliers = }\n\t{anchor_res = }\n\t{sse = }\n\t{outlier_cutoff = }")
+            print(f"[DEBUG] INVOKED create_compact_indexing.truncate_segment:\n\t{outliers = }\n\t{center_res = }\n\t{sse = }\n\t{outlier_cutoff = }")
         # Truncate the segment if outliers are present that exceed the float multiple of the outlier_cutoff
         segment_outliers = [k for k,v in outliers.items() if k >= sse[0] and k <= sse[1] and v > outlier_cutoff]
         if segment_outliers:
             # As a fallback, use the sse boundaries as truncation.
-            # go C- and N-terminal from the anchor residue up until the first segment outlier. Truncate there.
-            n_terminus = max([x for x in segment_outliers if x < anchor_res], default=sse[0]-1)
-            c_terminus = min([x for x in segment_outliers if x > anchor_res], default = sse[1]+1)
+            # go C- and N-terminal from the center residue up until the first segment outlier. Truncate there.
+            n_terminus = max([x for x in segment_outliers if x < center_res], default=sse[0]-1)
+            c_terminus = min([x for x in segment_outliers if x > center_res], default = sse[1]+1)
             if debug and n_terminus != sse[0]-1:
                 print(f"[DEBUG] create_compact_indexing.truncate_segment:\n\tTruncated segment N@{n_terminus} (prev {sse[0]})")
             if debug and c_terminus != sse[1]+1:
@@ -535,7 +535,7 @@ def create_compact_indexing(gain_obj, subdomain:str, actual_anchors:dict,
         return sse
 
     if debug:
-        print(f"[DEBUG] create_compact_indexing: passed arguments:\n\t{gain_obj.name = }\n\t{subdomain = }\n\t{actual_anchors = }")
+        print(f"[DEBUG] create_compact_indexing: passed arguments:\n\t{gain_obj.name = }\n\t{subdomain = }\n\t{actual_centers = }")
 
     ### END OF FUNCTION BLOCK
     # Initialize Dictionaries
@@ -545,13 +545,13 @@ def create_compact_indexing(gain_obj, subdomain:str, actual_anchors:dict,
     unindexed = []
     split_mode = 0
     # Catch an empty match; return all empty
-    if not actual_anchors:
+    if not actual_centers:
         print("[WARNING] create_compact_indexing. Umatched subdomain. Returning all empty entries.")
         return {}, {}, {}, [], 0
 
-    # Invert the actual anchors dict to match the GAIN residue to the named anchor
-    res2anchor = {v[0]:k for k,v in actual_anchors.items()} # v is a tuple  (residue, distance_to_template_center_residue)
-    if debug: print(f"[DEBUG] create_compact_indexing: {res2anchor = }")
+    # Invert the actual centers dict to match the GAIN residue to the named center
+    res2center = {v[0]:k for k,v in actual_centers.items()} # v is a tuple  (residue, distance_to_template_center_residue)
+    if debug: print(f"[DEBUG] create_compact_indexing: {res2center = }")
     # One-indexed Indexing list for each residue, mapping for the actual residue index
     nom_list = np.full(shape=[gain_obj.end+1], fill_value='      ', dtype='<U7')
 
@@ -567,29 +567,29 @@ def create_compact_indexing(gain_obj, subdomain:str, actual_anchors:dict,
 
         if debug:print(f"[DEBUG] create_compact_indexing : \nNo. {idx+1}: {sse}\n{first_res = }, {last_res = }")
 
-        # find residues matching anchors within the ordered segment
-        found_anchors = [sse_res for sse_res in range(first_res, last_res+1) if sse_res in res2anchor.keys()]
+        # find residues matching centers within the ordered segment
+        found_centers = [sse_res for sse_res in range(first_res, last_res+1) if sse_res in res2center.keys()]
 
-        n_found_anchors = len(found_anchors)
+        n_found_centers = len(found_centers)
 
-        if n_found_anchors == 0:
-            # If no anchor is found, move to $unindexed and check for overlap of unindexed template elements in a second pass.
+        if n_found_centers == 0:
+            # If no center is found, move to $unindexed and check for overlap of unindexed template elements in a second pass.
             # Check of overlapping non-indexed template elements. This should be done AFTER all normal matches are there
 
             if sse[1]-sse[0] >= threshold-1:
                 if debug:
-                    print(f"[DEBUG] create_compact_indexing : No anchor found! \n {[first_res, last_res] = }")
+                    print(f"[DEBUG] create_compact_indexing : No center found! \n {[first_res, last_res] = }")
                 unindexed.append([first_res, last_res])
             continue
 
-        if n_found_anchors == 1:
-            anchor_res = found_anchors[0]
-            if debug: print(f"SINGLUAR ANCHOR FOUND: @ {anchor_res = }, {res2anchor[anchor_res]}")
-            sse_name = res2anchor[anchor_res]
+        if n_found_centers == 1:
+            center_res = found_centers[0]
+            if debug: print(f"SINGLUAR ANCHOR FOUND: @ {center_res = }, {res2center[center_res]}")
+            sse_name = res2center[center_res]
             tr_sse = truncate_segment(outliers=gain_obj.outliers,
-                                      anchor_res=anchor_res,
+                                      center_res=center_res,
                                       sse=[first_res, last_res], outlier_cutoff=outlier_cutoff, debug=debug)
-            name_list, cast_values = create_name_list(tr_sse, anchor_res, sse_name)
+            name_list, cast_values = create_name_list(tr_sse, center_res, sse_name)
             # name_list has the assignment for the SSE, cast_values contains the passed values for dict casting
             nom_list, indexing_dir, indexing_centers = cast(nom_list, indexing_dir, indexing_centers, tr_sse, name_list, cast_values)
             # Also write split stuff to the new dictionary
@@ -597,10 +597,10 @@ def create_compact_indexing(gain_obj, subdomain:str, actual_anchors:dict,
                 named_residue_dir[entry] = entryidx + first_res
             continue
 
-        if n_found_anchors > 1:
-            # When multiple anchors are present, split the segment by finding coiled and outlier residues.
+        if n_found_centers > 1:
+            # When multiple centers are present, split the segment by finding coiled and outlier residues.
             if debug:
-                print(f"[DEBUG] create_compact_indexing : ANCHOR AMBIGUITY in this SSE:\n\t{sse = }\n\t{found_anchors = }")
+                print(f"[DEBUG] create_compact_indexing : ANCHOR AMBIGUITY in this SSE:\n\t{sse = }\n\t{found_centers = }")
 
             # parse the sse_sequence to find coiled and outlier residues
             coiled_residues = []
@@ -614,17 +614,17 @@ def create_compact_indexing(gain_obj, subdomain:str, actual_anchors:dict,
             if debug:
                 print(f"[DEBUG] create_compact_indexing :\n\t{coiled_residues  = }\n\t{outlier_residues = }")
             split_segs, split_mode = split_segments(sse=[first_res, last_res],
-                                                    found_anchors=found_anchors,
-                                                    res2anchor=res2anchor,
+                                                    found_centers=found_centers,
+                                                    res2center=res2center,
                                                     coiled_residues=coiled_residues,
                                                     outlier_residues=outlier_residues,
                                                     hard_cut=hard_cut,
                                                     debug=debug)
-            for anchor_res, segment in split_segs.items():
+            for center_res, segment in split_segs.items():
                 tr_segment = truncate_segment(outliers=gain_obj.outliers,
-                                      anchor_res=anchor_res,
+                                      center_res=center_res,
                                       sse=segment, outlier_cutoff=outlier_cutoff, debug=debug)
-                name_list, cast_values = create_name_list(tr_segment, anchor_res, res2anchor[anchor_res])
+                name_list, cast_values = create_name_list(tr_segment, center_res, res2center[center_res])
                 # cast them also?
                 nom_list, indexing_dir, indexing_centers = cast(nom_list, indexing_dir, indexing_centers, tr_segment, name_list, cast_values)
                  # Also write split stuff to the new dictionary
@@ -661,16 +661,16 @@ def create_compact_indexing(gain_obj, subdomain:str, actual_anchors:dict,
 
                     # check for overlap in the elements
                     if sse[0] in exmatch or sse[1] in exmatch: # With overlap, either the last or first residue must be in the template element
-                        target_anchor_res = actual_anchors[name][0] # This is the target residue corresponding to the anchor
-                        # target_anchor_res is the template resdiue. We need the fitting target residue
+                        target_center_res = actual_centers[name][0] # This is the target residue corresponding to the center
+                        # target_center_res is the template resdiue. We need the fitting target residue
 
-                        if target_anchor_res is None:
+                        if target_center_res is None:
                             hasPseudocenter = True
-                            print(f"[WARNING] create_compact_indexing:\n\tANCHOR MATCH NOT FOUND\n\t{actual_anchors = }")
+                            print(f"[WARNING] create_compact_indexing:\n\tANCHOR MATCH NOT FOUND\n\t{actual_centers = }")
                             target_matches = {v[0]:k for k,v in template_matches.items() if v[0] is not None}
-                            offset_dict = {target_matches[res]-template_anchors[name]:res for res in exmatch}
+                            offset_dict = {target_matches[res]-template_centers[name]:res for res in exmatch}
                             # Check whether N-terminal or C-terminal offsets. Should only be one of them 
-                            #   since the anchor_res is not directly included in exmatch
+                            #   since the center_res is not directly included in exmatch
                             # Find the longest segment for determining the pseudocenter
                             if len([k for k in offset_dict.keys() if k < 0]) > len([k for k in offset_dict.keys() if k > 0]):
                                 n_terminal = True
@@ -678,18 +678,18 @@ def create_compact_indexing(gain_obj, subdomain:str, actual_anchors:dict,
                             else:
                                 n_terminal = False
                                 offset = min([k for k in offset_dict.keys() if k>0])
-                            target_anchor_res = offset_dict[offset]-offset # This is the pseudocenter - Even if it is unmatched, we pretend that it is.
+                            target_center_res = offset_dict[offset]-offset # This is the pseudocenter - Even if it is unmatched, we pretend that it is.
                             if debug:
-                                print(f"\tFound Pseudocenter @ {target_anchor_res}:{name}\n\tPlease validate manually.")
+                                print(f"\tFound Pseudocenter @ {target_center_res}:{name}\n\tPlease validate manually.")
                             # Write to File if specified. This is for Pseudocenter statistics.
                             if pseudocenters is not None:
-                                open(pseudocenters, "a").write(f"{gain_obj.name},{target_anchor_res},{name}\n")
+                                open(pseudocenters, "a").write(f"{gain_obj.name},{target_center_res},{name}\n")
                         if debug:
                             print(f"[DEBUG] create_compact_indexing : OFFSET CASE\n\t{first_res = } {last_res = } \n\t{extent = }")
-                            print(f"\t{actual_anchors = }\n\t{name = }")
-                            print(f"\t{target_anchor_res = }\t{target_anchor_res = }")
+                            print(f"\t{actual_centers = }\n\t{name = }")
+                            print(f"\t{target_center_res = }\t{target_center_res = }")
 
-                        name_list, cast_values = create_name_list(sse, target_anchor_res, name)
+                        name_list, cast_values = create_name_list(sse, target_center_res, name)
 
                         # Pseudocenter truncation check. We only want the overlapping part, not something like bulges which have negilgible accuracy.
                         if hasPseudocenter and n_terminal:
@@ -706,7 +706,7 @@ def create_compact_indexing(gain_obj, subdomain:str, actual_anchors:dict,
                             named_residue_dir[entry] = entryidx+sse[0]
 
                         if debug:
-                            print(f"[DEBUG] create_compact_indexing :\n\tFound offset Element {name} @ {target_anchor_res}\n\tTemplate: {extent}\n\t Target: {sse}\n\t{name_list = }\n\t{cast_values = }")
+                            print(f"[DEBUG] create_compact_indexing :\n\tFound offset Element {name} @ {target_center_res}\n\tTemplate: {extent}\n\t Target: {sse}\n\t{name_list = }\n\t{cast_values = }")
                         unassigned_template_extents.pop(name)
                         break
 
