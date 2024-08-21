@@ -2,9 +2,6 @@
 # Functions for finding a template via GainDomain subselection and GESAMT pairwise structural alignments.
 import glob, os, re, shutil, math
 import numpy as np
-import matplotlib.pyplot as plt
-import scipy.cluster.hierarchy
-from scipy.spatial.distance import squareform
 from sklearn.cluster import AgglomerativeClustering
 from sklearn.cluster import MiniBatchKMeans
 from sklearn.decomposition import PCA
