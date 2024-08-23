@@ -109,30 +109,30 @@ def make_id_list(id_dir):
             id_list.append(f"{sse}.{res}")
     return id_list #np.array(id_list)
 
-def compact_label_positions(id_collection, plddt_collection, sse_keys, debug=False):
-    # Stacks label positions on one another
-    label_plddts = {}
+def compact_label_positions(id_collection, value_collection, sse_keys, debug=False):
+    # Stacks label positions on one another for collecting all values for any label (i.e pLDDT or residues)
+    label_values = {}
     for sse in sse_keys:
-        label_plddts[sse] = {}
+        label_values[sse] = {}
 
     for i in range(len(id_collection)):
         gain_positions = id_collection[i]
-        plddt_positions = plddt_collection[i]
+        value_positions = value_collection[i]
         if debug: 
-            print(i,gain_positions, plddt_positions, sep="\n")
+            print(i,gain_positions, value_positions, sep="\n")
         for sse, v in gain_positions.items():
             if v == []:
                 continue
             for j, pos in enumerate(v):
                 pos = int(pos)
-                if j >= len(plddt_positions[sse]):
+                if j >= len(value_positions[sse]):
                     continue
-                if pos not in label_plddts[sse].keys():
-                    label_plddts[sse][pos] = [plddt_positions[sse][j]]
+                if pos not in label_values[sse].keys():
+                    label_values[sse][pos] = [value_positions[sse][j]]
                 else:
-                    label_plddts[sse][pos].append(plddt_positions[sse][j])
+                    label_values[sse][pos].append(value_positions[sse][j])
 
-    return label_plddts
+    return label_values
 
 def construct_id_occupancy(indexing_dirs, center_dirs, length, plddt_dir, names, seqs, starts:list, debug=False):
     newkeys = ['H1','H1.D1','H1.E1','H1.F4','H2','H3','H4','H5','H6','S1','S2','S3','S4','S5','S6','S7','S8','S9','S10','S11','S12','S13','S14']
@@ -149,9 +149,10 @@ def construct_id_occupancy(indexing_dirs, center_dirs, length, plddt_dir, names,
         #print(id_dir)
         plddt_collection.append(plddts)
         seq_collection.append(sse_seq)
-    print("Completed creating value collection.")
-    print(id_collection[0])
-    print(plddt_collection[0])
+    if debug:
+        print("Completed creating value collection.")
+        print(id_collection[0])
+        print(plddt_collection[0])
 
     # Here, parse through the id_dirs to count the occurrence of positions per SSE
     # Dictionary to map any label identifier to a respective position.
@@ -166,7 +167,8 @@ def construct_id_occupancy(indexing_dirs, center_dirs, length, plddt_dir, names,
     for i, id_dict in enumerate(id_collection):
         max_id_list.append(make_id_list(id_dict))
     flat_id_list = np.array([item for sublist in max_id_list for item in sublist])
-    print("Finished constructing flat_id_list.")
+    if debug:
+        print("Finished constructing flat_id_list.")
     labels, occ = np.unique(flat_id_list, return_counts=True)
     # Parse through labels, occ to generate the sse-specific data
     occ_dict = {labels[u]:occ[u] for u in range(len(labels))}
