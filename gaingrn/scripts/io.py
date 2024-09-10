@@ -8,7 +8,7 @@ import pandas as pd
 import multiprocessing as mp
 
 # Get the data; the link might change TODO
-def download_data(url='https://zenodo.org/uploads/12515545/gaingrn_data.tgz', target_directory=f"{os.getcwd()}/data"):
+def download_data(url='https://zenodo.org/uploads/12515545/gaingrn_data.tgz', target_directory=f"{os.getcwd().replace('gaingrn','data')}"):
     # Ensure the target directory exists 
     os.makedirs(target_directory, exist_ok=True)
     # Download the file 
@@ -23,7 +23,7 @@ def download_data(url='https://zenodo.org/uploads/12515545/gaingrn_data.tgz', ta
     # Extract the tar.gz file
     with tarfile.open(temp_file_path, 'r:gz') as tar: 
         tar.extractall(path=target_directory)
-        
+
     print("Download and Extraction complete.")
 
 # executing binaries
