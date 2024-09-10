@@ -56,13 +56,13 @@ Status
 ``GAIN-GRN`` is approaching its release alongside publication.
 
  .. |Python| image::
-    https://github.com/FloSeu/GAIN-GRN/tree/main/figures/python39.svg
- 
+    https://github.com/FloSeu/GAIN-GRN/blob/main/figures/python39.svg
+
  .. |Jupyter| image::
-    https://github.com/FloSeu/GAIN-GRN/tree/main/figures/jupyterlab.svg
+    https://github.com/FloSeu/GAIN-GRN/blob/main/figures/jupyterlab.svg
 
  .. |License| image::
-    https://github.com/FloSeu/GAIN-GRN/tree/main/figures/gpl3.svg
+    https://github.com/FloSeu/GAIN-GRN/blob/main/figures/gpl3.svg
     :target: https://github.com/FloSeu/GAIN-GRN/LICENSE.txt
  
  .. |DOI| image::
