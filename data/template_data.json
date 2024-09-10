@@ -7,6 +7,10 @@
                         "E5": "G1TKX5-G1TKX5_RABIT-AGRE5-Oryctolagus_cuniculus", 
                         "F5": "A0A7L3N0A5-A0A7L3N0A5_9AVES-AGRF5protein-Oreotrochilus_melanogaster.",
                         "F4": "W5PQ70-W5PQ70_SHEEP-AGRF4-Ovis_aries", 
+                        "G1": "A0A2J8VZ69_H2NR11-A0A2J8VZ69_PONAB-AGRG1-Pongo_abelii",
+                        "G3": "H3BRU4-H3BRU4_HUMAN-AGRG3-Homo_sapiens",
+                        "G5": "A0A2Y9QTG8-A0A2Y9QTG8_TRIMA-AGRG5-Trichechus_manatus_latirostris",
+                        "G6": "A0A3B3WUK6-A0A3B3WUK6_9TELE-AGRG6-Poecilia_mexicana.",
                         "G7": "A0A2K5Y1I7-A0A2K5Y1I7_MANLE-AGRG7-Mandrillus_leucophaeus", 
                         "L": "A0A452HCU9-A0A452HCU9_9SAUR-AGRL3-Gopherus_agassizii", 
                         "L4": "A0A7L3KTA8-A0A7L3KTA8_9PASS-AGRL4protein-Drymodes_brunneopygia.",
@@ -65,7 +69,7 @@
                     "G5b":  {"GPS.-2":219, "GPS.-1":220, "GPS.+1":221},
                     "G4b":  {"GPS.-2":363, "GPS.-1":364, "GPS.+1":365}
                   },
-        "anchor_priority":{ 
+        "center_priority":{ 
                         "H1" :60, "H2" :70, "H3" :80, "H4" :90, "H5" :80, "H6" :100,
                         "S1" :70, "S2" :80, "S3" :90, "S4" :30, "S5" :80, "S6" :85, "S7" :50, "S8" :90, "S9" :95, "S10" :90, "S11":80, "S12":98, "S13":99, "S14":100
                   },
