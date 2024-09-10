@@ -11,7 +11,7 @@ Filter Stage Schmilter Schmage
 
  .. |JLogo| image:: 
    https://github.com/FloSeu/GAIN-GRN/blob/main/figures/jlogo.png
-   :height: 1.5ex
+   :height: 1ex
    :class: no-scaled-link
 
  .. |Python| image::
