@@ -2,12 +2,14 @@ GAIN-GRN: A Generic Residue Numbering Scheme for GPCR Autoproteolysis Inducing (
 ===================================================================================
 
 This documentation contains explanations for the contents and usage of the Jupyter notebooks and scripts contained in the package.
-|JLogo| \1. Filter Stage
+ \1. |JLogo| Filter Stage
 
 
 
- .. |JLogo| image::
-    https://github.com/FloSeu/GAIN-GRN/blob/main/figures/jlogo.png
+ .. |JLogo| image:: 
+   https://github.com/FloSeu/GAIN-GRN/blob/main/figures/jlogo.png
+   :height: 2ex
+   :class: no-scaled-link
 
  .. |Python| image::
     https://github.com/FloSeu/GAIN-GRN/blob/main/figures/python39.svg
