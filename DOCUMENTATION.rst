@@ -6,12 +6,14 @@ This documentation contains explanations for the contents and usage of the Jupyt
 |JLogo| `1 Filter Stage <https://github.com/FloSeu/GAIN-GRN/blob/main/gaingrn/1_filter_stage.ipynb>`_
 =====================================================================================================
 
-Filter Stage Schmilter Schmage
+The
 
 |JLogo| `2 Template Selection <https://github.com/FloSeu/GAIN-GRN/blob/main/gaingrn/2_template_selection.ipynb>`_
 =================================================================================================================
 
-Filter Stage Schmilter Schmage
+.. figure:: figures/workflow2.png
+   :scale: 33%
+
 
 |JLogo| `3 Template Curation <https://github.com/FloSeu/GAIN-GRN/blob/main/gaingrn/3_template_curation.ipynb>`_
 ===============================================================================================================
