@@ -3,7 +3,7 @@ GAIN-GRN: A Generic Residue Numbering Scheme for GPCR Autoproteolysis Inducing (
 
 This documentation contains explanations for the contents and usage of the Jupyter notebooks and scripts contained in the package.
 
-\1. |JLogo| Filter Stage
+|JLogo| \1. Filter Stage
 =========================
 
 Filter Stage Schmilter Schmage
@@ -11,7 +11,7 @@ Filter Stage Schmilter Schmage
 
  .. |JLogo| image:: 
    https://github.com/FloSeu/GAIN-GRN/blob/main/figures/jlogo.png
-   :height: 2ex
+   :height: 1.5ex
    :class: no-scaled-link
 
  .. |Python| image::
