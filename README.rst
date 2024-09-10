@@ -31,8 +31,7 @@ Licenses
 
 Documentation
 =============
-Please refer to this readme and the code annotations for dcoumentations.
-
+Please refer to the `Usage Guide <GUIDE.rst>`_ and `FAQ <FAQ.rst>`_
 System Requirements
 ===================
 ``GAIN-GRN`` is developed in GNU/Linux. Tested Python versions are:

@@ -14,7 +14,7 @@ Here, the GAIN domain 3D models and their secondary structure data evaluated by 
 The valid GAIN domains are collected into a *GainCollection* object containing their N-, C- and subdomain boundary as well as information about their secondary structural elements.
 It is stored in a PKL file.
 
-A similar procedure is done for `PKD1/PKD1L1 GAIN domain models <gaingrn/pkd_gain/pkd_gain_processing.iypnb>`_.
+A similar procedure is done for PKD1/PKD1L1 GAIN domain models in |JLogo| `pkd_gain/pkd_gain_processing.ipynb <gaingrn/pkd_gain/pkd_gain_processing.iypnb>`_.
 
 |JLogo| `2 Template Selection <https://github.com/FloSeu/GAIN-GRN/blob/main/gaingrn/2_template_selection.ipynb>`_
 =================================================================================================================
@@ -25,7 +25,7 @@ Two sets of templates exist for each respective subdomain to account for their d
    :width: 600
 
 Subselections are created based on manually defined criteria (Here, we use aGPCR homologs, i. e. "ADGRA2") and each subselection is aligned to itself via GESAMT, creating an n² RMSD matrix.
-The subselection is then assessed `agglomerative clustering < https://scikit-learn.org/stable/modules/generated/sklearn.cluster.AgglomerativeClustering.html>`_ to see the variance within the subselection.
+The subselection is then assessed `agglomerative clustering <https://scikit-learn.org/stable/modules/generated/sklearn.cluster.AgglomerativeClustering.html>`_ to see the variance within the subselection.
 If the variance is sufficiently small and coverage is decent, the centroid of the largest cluster is selected as a *potential template*. Every *potential template* is pairwise-matched against the whole 
 *valid collection* and MSAs are created for each segment by stacking the pairwise residue matches. From these MSAs, the segment center can be extracted by finding the highest occupancy and conservation
 in the segment resdiues.
@@ -61,7 +61,7 @@ The complete set of GRN assignments can now be used to statistically evaluate th
 ====================================================================================================================
 
 As an application for the GAIN-GRN, the natural variant and cancer mutation data for the human aGPCR can be mapped to their respective GRN labels. This enables the calculation of a cancer enrichment score
-analogous to Wright et al.[1], enabling the identification of hotspots of cancer-enriched residues (see Figure 5, Supp. Fig. 2). Here, also tools are provided to extract the full variant/mutation information
+analogous to `Wright et al. (2019) <ttps://www.nature.com/articles/s41467-019-08630-2>`_, enabling the identification of hotspots of cancer-enriched residues (see Figure 5, Supp. Fig. 2). Here, also tools are provided to extract the full variant/mutation information
 for every labeled position (which receptor, which substitution, which potential impact) for the individual assessment of residues for designing wet-lab experiments. 
 
 |JLogo| `Dynamic GAIN-GRN Assignment <https://github.com/FloSeu/GAIN-GRN/blob/main/gaingrn/dynamic_gain_grn.ipynb>`_
