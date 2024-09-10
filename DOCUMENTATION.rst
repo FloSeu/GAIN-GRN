@@ -6,9 +6,6 @@ This documentation contains explanations for the contents and usage of the Jupyt
 
 
 
-
-
-
  .. |JLogo| image::
     https://github.com/FloSeu/GAIN-GRN/blob/main/figures/jlogo.png
 
