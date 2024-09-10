@@ -4,7 +4,7 @@ import gaingrn.scripts.mutation_utils
 import numpy as np
 
 class MutationAnalysis:
-    def __init__(self, appended_gain_collection, segments, jsons, csvs, fasta_offsets ):
+    def __init__(self, appended_gain_collection, segments, jsons, csvs, fasta_offsets):
         self.segments = segments
         self.generalized_counts = {}     # For every nomenclature label, the number of MUTATION entries is denoted
         self.generalized_mutations = {}  #   ^ The info behind the entries is here.

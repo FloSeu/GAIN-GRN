@@ -5,7 +5,6 @@ import re, json, math
 import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib.ticker import (MultipleLocator, FixedLocator)
-import gaingrn.scripts.assign
 
 def retrieve_json_vars(name,jsons):
     # A function retrieving variants from a JSON File as exported by TCGA/NCGA, returning them as a dictionary
@@ -136,7 +135,7 @@ def compose_vars(aGainCollection, files, resid_key, aa_key, fasta_offsets, merge
         # Evaluate the vars/mutations. If the residue in question (corrected index) is named (i.e. "H6.50"), get its resepective label.
         for p_resid in gain_pos_dict.keys():
             # Since fasta_offset maps to the first gain residue (i.e. 2027 with gain.start being 459), an offset needs to be set by the difference
-            corrected_resid = p_resid - fasta_offset + gain.start #-1 # [ISSUE] ROLE OF THIS OFFSET???
+            corrected_resid = p_resid - fasta_offset + gain.start -1
             #print(f"DEBUG {corrected_resid = }, {p_resid = },\n",
             #   f"TRUE GAIN INTERVAL {fasta_offset+gain.start} - {fasta_offset+gain.end}\nCORRECTED GAIN INTERVAL {gain.start}-{gain.end}")
             # map it to its corresponding label. If there is none, continue

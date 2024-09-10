@@ -1,12 +1,8 @@
 ## scripts/indexing_utils.py
 # Contains functions for handling and analyzing the completely indexed dataset via StAlIndexing class instances
 
-import logomaker
 import numpy as np
 import pandas as pd
-from scipy import stats
-from matplotlib import pyplot as plt
-from matplotlib.ticker import (MultipleLocator, FixedLocator)
 import gaingrn.scripts.io
 
 def get_loops(indexing_dir):
@@ -135,11 +131,11 @@ def compact_label_positions(id_collection, value_collection, sse_keys, debug=Fal
     return label_values
 
 def construct_id_occupancy(indexing_dirs, center_dirs, length, plddt_dir, names, seqs, starts:list, debug=False):
-    newkeys = ['H1','H1.D1','H1.E1','H1.F4','H2','H3','H4','H5','H6','S1','S2','S3','S4','S5','S6','S7','S8','S9','S10','S11','S12','S13','S14']
+    segments = ['H1','H1.D1','H1.E1','H1.F4','H2','H3','H4','H5','H6','S1','S2','S3','S4','S5','S6','S7','S8','S9','S10','S11','S12','S13','S14']
     id_collection = []
     plddt_collection = []
     seq_collection = []
-    all_id_dir = {x:[] for x in newkeys}
+    all_id_dir = {x:[] for x in segments}
     for k in range(length):
         identifier = names[k].split("-")[0]
         plddt_values = plddt_dir[identifier]
@@ -158,7 +154,7 @@ def construct_id_occupancy(indexing_dirs, center_dirs, length, plddt_dir, names,
     # Dictionary to map any label identifier to a respective position.
     id_map = {}
     i = 0
-    for sse in newkeys:
+    for sse in segments:
         for res in all_id_dir[sse]:
             id_map[f'{sse}.{res}'] = i 
             i += 1
@@ -174,11 +170,11 @@ def construct_id_occupancy(indexing_dirs, center_dirs, length, plddt_dir, names,
     occ_dict = {labels[u]:occ[u] for u in range(len(labels))}
     # Transform occ_dict to the same format as label_plddts (one dict per sse):
     label_occ = {}
-    for sse in newkeys:
+    for sse in segments:
         label_occ[sse] = {int(k[-2:]):v for k,v in occ_dict.items() if sse in k}
     #print(labels, occ)
-    label_plddts = compact_label_positions(id_collection, plddt_collection, newkeys, debug=debug)
-    label_seq = compact_label_positions(id_collection, seq_collection, newkeys, debug=debug)
+    label_plddts = compact_label_positions(id_collection, plddt_collection, segments, debug=debug)
+    label_seq = compact_label_positions(id_collection, seq_collection, segments, debug=debug)
     #print(labels)
     return label_plddts, label_occ, label_seq
     #[print(k, len(v)) for k,v in label_plddts.items()]
