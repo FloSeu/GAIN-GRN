@@ -1,7 +1,11 @@
-GAIN-GRN: A Generic Residue Numbering Scheme for GPCR Autoproteolysis Inducing (GAIN) Domains
-===================================================================================
+Frequently Asked Questions
+==========================
 
-**Can this approach be generalized to any protein domain**
+**How can I get the data needed in the data/ directory?**
+
+Use the provided function *gaingrn.scripts.io.download_data()* or manually get the tgz from the `zenodo repository <https://dx.doi.org/10.5281/zenodo.12515545>`_.
+
+**Can this approach be generalized to any protein domain?**
 
 In general, **yes**. Look at the workflow presented in `GUIDE.rst <GUIDE.rst>`_: With the GAIN domains, we are dealing with a heterogenous and (so far) poorly annotated protein domain. We can easily
 use the *Uniprot Domain* entries of better conserved domains, i.e. EGF, to extract a set of structures from the AlphaFoldDB which is more consistent as a base dataset. In this case, the following procedure is advised:
@@ -9,7 +13,7 @@ use the *Uniprot Domain* entries of better conserved domains, i.e. EGF, to extra
 1. Write a separate detection function specific for the key markers of your domain
 
    - Identify key regions of high/low conservation and structural homo-/heterogeneity.
-   
+
    - Be aware of possible subdomains that need splitting for templates.
 
 2. Create a new *DomainObject* class which has key markers, boundaries etc. of your target domain
@@ -20,9 +24,7 @@ use the *Uniprot Domain* entries of better conserved domains, i.e. EGF, to extra
    
    - Are there different families of proteins in your dataset? You should assess the structural variance in each of subselections until you reach a sufficient level of coverage.
 
-   - Assign names to segments manually in your *template data*. For this, you can either do a "maximalist approach", where you assign names to as many segments as possible, regardless of conservation, 
-     
-     or you stick to a "minimalist approach", where only the most conserved segments are labeled.
+   - Assign names to segments manually in your *template data*. For this, you can either do a "maximalist approach", where you assign names to as many segments as possible, regardless of conservation, or you stick to a "minimalist approach", where only the most conserved segments are labeled.
 
 **Are cancer-enriched positions all relevant for wet-lab experiments?**
 

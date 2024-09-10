@@ -21,6 +21,10 @@ of GAIN domains, determining the variance of the GAIN domain dataset and establi
 template structures, their segments and their segment centers, a dynamic notebook is provided to dynamically assign the GAIN-GRN to any GAIN domain, including domains of the related Polycystic Kidney disease / 
 Polycystic Kidney disease-like (PKD1/PKD1L1) GAIN domains.
 
+**IMPORTANT**
+
+To be able to use the package and notebooks, please use the *gaingrn.scripts.io.download_data()* function to download the necessary data from the `zenodo repository <https://dx.doi.org/10.5281/zenodo.12515545>`_.
+
 Licenses
 ========
 * ``GAIN-GRN`` is licensed under the `GNU Lesser General Public License v3.0 or later <https://www.gnu.org/licenses/lgpl-3.0-standalone.html>`_ (``LGPL-3.0-or-later``, see the LICENSE.txt).

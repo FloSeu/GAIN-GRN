@@ -1,11 +1,30 @@
 ## scripts/io.py
 #   contains functions for file input/output operations and running commands like STRIDE as command line.
 
-import os, json, re, glob, shlex, shutil
+import os, json, re, glob, shlex, shutil, requests, tarfile
 from subprocess import PIPE, Popen
 import numpy as np
 import pandas as pd
 import multiprocessing as mp
+
+# Get the data; the link might change TODO
+def download_data(url='https://zenodo.org/uploads/12515545/gaingrn_data.tgz', target_directory=f"{os.getcwd()}/data"):
+    # Ensure the target directory exists 
+    os.makedirs(target_directory, exist_ok=True)
+    # Download the file 
+    response = requests.get(url, stream=True)
+    response.raise_for_status() # Check for request errors
+    # # Define the path for the temporary file 
+    temp_file_path = os.path.join(target_directory, "temp_file.tgz") 
+    # Write the content to a temporary file
+    with open(temp_file_path, 'wb') as file: 
+        for chunk in response.iter_content(chunk_size=8192): 
+            file.write(chunk) 
+    # Extract the tar.gz file
+    with tarfile.open(temp_file_path, 'r:gz') as tar: 
+        tar.extractall(path=target_directory)
+        
+    print("Download and Extraction complete.")
 
 # executing binaries
 
