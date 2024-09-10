@@ -14,6 +14,7 @@ use the *Uniprot Domain* entries of better conserved domains, i.e. EGF, to extra
    - In case of GAIN domains, we are dealing with domains that have *either* helices or strands. In mixed domains, the data structure needs to be altered to accurately reflect the secondary structural composition
 
 3. Adjust subselection routines for template detection and curation
+   
    - Are there different families of proteins in your dataset? You should assess the structural variance in each of subselections until you reach a sufficient level of coverage.
    - Assign names to segments manually in your *template data*. For this, you can either do a "maximalist approach", where you assign names to as many segments as possible, regardless of conservation; 
       or you stick to a "minimalist approach", where only the most conserved segments are labeled.
