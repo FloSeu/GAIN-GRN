@@ -41,3 +41,6 @@ Issues = "https://github.com/FloSeu/GAIN-GRN/issues"
 
 [options]
 packages = "gaingrn"
+
+[tool.setuptools]
+package-dir = {"" = "gaingrn"}
