@@ -15,8 +15,8 @@ from gaingrn.scripts.variant_classes import *
 
 class TestBinaries(unittest.TestCase):
 
-    STRIDE_BIN = '/home/hildilab/lib/stride/stride'
-    GESAMT_BIN = '/home/hildilab/lib/xtal/ccp4-8.0/ccp4-8.0/bin/gesamt'
+    #STRIDE_BIN = '/home/hildilab/lib/stride/stride'
+    #GESAMT_BIN = '/home/hildilab/lib/xtal/ccp4-8.0/ccp4-8.0/bin/gesamt'
 
     def test_stride(self):
         pdb_file = "test_data/A_A0A2Y9F628.pdb"
@@ -189,5 +189,6 @@ if __name__ == '__main__':
     # Get STRIDE and GESAMT binary from SYSTEM.
     TestBinaries.STRIDE_BIN = os.environ.get('STRIDE_BIN', TestBinaries.STRIDE_BIN)
     TestBinaries.GESAMT_BIN = os.environ.get('GESAMT_BIN', TestBinaries.GESAMT_BIN)
+    print("FOUND BINARIES: ", TestBinaries.STRIDE_BIN, TestBinaries.GESAMT_BIN)
 
     unittest.main()
