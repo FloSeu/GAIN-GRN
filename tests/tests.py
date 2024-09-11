@@ -8,6 +8,7 @@ import gaingrn.scripts.io
 from gaingrn.scripts.gain_classes import GainCollection, GainDomainNoAln
 import gaingrn.scripts.structure_utils
 import gaingrn.scripts.template_utils
+import gaingrn.scripts.assign
 import pandas as pd
 from gaingrn.scripts.variant_classes import *
 # Test functions have to start with "test_"
@@ -168,7 +169,7 @@ class TestClasses(unittest.TestCase):
 
         human_accessions = [gain.name.split("-")[0].split("_")[0] for gain in human_collection.collection]
         human_sequences = ["".join(gain.sequence) for gain in human_collection.collection]
-        seq_file = '../data/all_query_sequences.fasta'
+        seq_file = '../data/seq_aln/all_query_sequences.fasta'
 
         human_fasta_offsets = gaingrn.scripts.alignment_utils.find_offsets(seq_file,
                                         human_accessions, 
