@@ -9,14 +9,12 @@ authors = [
   { name="Florian Seufert", email="florian.seufert@medizin.uni-leipzig.de" },
 ]
 description = "A generic numbering scheme for adhesion GPCR GAIN domains"
-
-[project.readme]
-readme = "README.rst"
-content-type = "text/x-rst"
+readme = {file = "README.rst", content-type = "text/x-rst"}
 
 [project.urls]
 Homepage = "https://github.com/FloSeu/GAIN-GRN"
-#Issues = "https://github.com/FloSeu/GAIN-GRN/issues"
+Dcoumentation = "https://github.com/FloSeu/GAIN-GRN/blob/main/GUIDE.rst"
+Issues = "https://github.com/FloSeu/GAIN-GRN/issues"
 
 requires-python = ">=3.9"
 classifiers = [
