@@ -30,7 +30,7 @@ dependencies = [
     "ipython>=8.10.0",
     "biopython>=1.81",
     "traitlets>=4.2.1",
-    "ipywidgets==4.1.1",
+    "ipywidgets>=4.1.1",
     "notebook>=4.1.0"
 ]
 
@@ -42,5 +42,6 @@ Issues = "https://github.com/FloSeu/GAIN-GRN/issues"
 [options]
 packages = "gaingrn"
 
-[tool.setuptools]
-package-dir = {"" = "gaingrn"}
+[tool.setuptools.packages.find]
+include = ["gaingrn"]
+exclude = ["tests","data","figures"]
