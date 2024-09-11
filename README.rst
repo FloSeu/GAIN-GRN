@@ -21,9 +21,25 @@ of GAIN domains, determining the variance of the GAIN domain dataset and establi
 template structures, their segments and their segment centers, a dynamic notebook is provided to dynamically assign the GAIN-GRN to any GAIN domain, including domains of the related Polycystic Kidney disease / 
 Polycystic Kidney disease-like (PKD1/PKD1L1) GAIN domains.
 
-**IMPORTANT**
+Installation
+============
 
-To be able to use the package and notebooks, please use the *gaingrn.scripts.io.download_data()* function to download the necessary data from the `zenodo repository <https://dx.doi.org/10.5281/zenodo.12515545>`_.
+Clone the repository, cd into the ``GAIN-GRN`` folder and install via ``pip`` 
+
+  >>> pip install gaingrn
+
+To be able to use the package, notebooks and tests, please use the ``gaingrn.scripts.io.download_data()`` function to download the necessary data from the `zenodo repository <https://dx.doi.org/10.5281/zenodo.12515545>`_.
+in your cloned repository, use *python* with:
+
+  >>> import gaingrn.scripts.io
+  >>> gaingrn.scripts.io.download_data()
+
+Furthermore, if you want to execute *GESAMT* and *STRIDE*, you will need the corresponding binaries and set them via:
+
+  >>> export GESAMT_BIN=/path/to/your/GESAMT
+  >>> export STRIDE_BIN=/path/to/your/STRIDE
+
+Here are links for installing `GESAMT <https://www.ccp4.ac.uk/download/>`_ via ccp4 and `STRIDE <https://webclu.bio.wzw.tum.de/stride/install.html>`_.
 
 Licenses
 ========
@@ -42,7 +58,6 @@ System Requirements
 ``GAIN-GRN`` is developed in GNU/Linux. Tested Python versions are:
 
 * GNU/Linux: 3.9, 3.10
-
 
 Authors
 =======
