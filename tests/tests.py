@@ -19,6 +19,8 @@ class TestBinaries(unittest.TestCase):
     #GESAMT_BIN = '/home/hildilab/lib/xtal/ccp4-8.0/ccp4-8.0/bin/gesamt'
 
     def test_stride(self):
+        
+        STRIDE_BIN = os.environ.get('STRIDE_BIN')
         pdb_file = "test_data/A_A0A2Y9F628.pdb"
         out_file = "stride_test.out"
         self.assertTrue(os.path.isfile(STRIDE_BIN))
@@ -33,6 +35,8 @@ class TestBinaries(unittest.TestCase):
         os.remove(out_file)
 
     def test_gesamt(self):
+
+        GESAMT_BIN = os.environ.get('GESAMT_BIN')
         template_pdb = "test_data/A_A0A2Y9F628.pdb"
         mobile_pdb = "test_data/Q8IWK6_Q6UXK9_Q86SQ5_Q8TC55-AGRA3_HUMAN-AGRA3-Homo_sapiens_gain.pdb"
 
@@ -62,7 +66,7 @@ class TestFunctions(unittest.TestCase):
     # Test underlying large functions from sse_func
     def test_assign_indexing(self):
 
-        GESAMT_BIN = '/home/hildilab/lib/xtal/ccp4-8.0/ccp4-8.0/bin/gesamt'
+        GESAMT_BIN = os.environ.get('GESAMT_BIN')
 
         # First, generate the GainDomain object fromt the STRIDE file
         pkd_gain = GainDomainNoAln(start=None,
@@ -186,9 +190,4 @@ class TestClasses(unittest.TestCase):
         self.assertTrue(len(GainMutations.generalized_mutations['H1.39']) == 3)
 
 if __name__ == '__main__':
-    # Get STRIDE and GESAMT binary from SYSTEM.
-    STRIDE_BIN = os.environ.get('STRIDE_BIN')
-    GESAMT_BIN = os.environ.get('GESAMT_BIN')
-    print("FOUND BINARIES: ", STRIDE_BIN, GESAMT_BIN)
-
     unittest.main()
