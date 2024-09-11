@@ -47,6 +47,8 @@ Furthermore, if you want to execute *GESAMT* and *STRIDE*, you will need the cor
 
 Here are links for installing `GESAMT <https://www.ccp4.ac.uk/download/>`_ via ccp4 and `STRIDE <https://webclu.bio.wzw.tum.de/stride/install.html>`_.
 
+The dynamic GAIN-GRN assignment notebook uses ``curl`` as a dependency for retrieving UniProt and AlphaFold data. Ensure it is runnable from command line.
+
 Licenses
 ========
 * ``GAIN-GRN`` is licensed under the `GNU Lesser General Public License v3.0 or later <https://www.gnu.org/licenses/lgpl-3.0-standalone.html>`_ (``LGPL-3.0-or-later``, see the LICENSE.txt).
