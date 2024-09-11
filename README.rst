@@ -26,18 +26,21 @@ Installation
 
 Clone the repository, cd into the ``GAIN-GRN`` folder and install via ``pip`` 
 
-  >>> pip install gaingrn
+.. code-block:: bash
+   pip install gaingrn
 
 To be able to use the package, notebooks and tests, please use the ``gaingrn.scripts.io.download_data()`` function to download the necessary data from the `zenodo repository <https://dx.doi.org/10.5281/zenodo.12515545>`_.
 in your cloned repository, use *python* with:
 
-  >>> import gaingrn.scripts.io
-  >>> gaingrn.scripts.io.download_data()
+.. code-block:: python
+  import gaingrn.scripts.io
+  gaingrn.scripts.io.download_data()
 
 Furthermore, if you want to execute *GESAMT* and *STRIDE*, you will need the corresponding binaries and set them via:
 
-  >>> export GESAMT_BIN=/path/to/your/GESAMT
-  >>> export STRIDE_BIN=/path/to/your/STRIDE
+.. code-block:: bash
+   export GESAMT_BIN=/path/to/your/GESAMT
+   export STRIDE_BIN=/path/to/your/STRIDE
 
 Here are links for installing `GESAMT <https://www.ccp4.ac.uk/download/>`_ via ccp4 and `STRIDE <https://webclu.bio.wzw.tum.de/stride/install.html>`_.
 
@@ -47,7 +50,8 @@ Licenses
 
 * Modules used by ``GAIN-GRN`` have different licenses. You can check any module's license in your Python environment using `pip-licenses <https://github.com/raimon49/pip-licenses>`_:
 
-  >>> pip-licenses | grep module_name
+.. code-bock:: bash
+   pip-licenses | grep module_name
 
 Documentation
 =============
