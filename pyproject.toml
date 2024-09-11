@@ -10,20 +10,20 @@ authors = [
 ]
 description = "A generic numbering scheme for adhesion GPCR GAIN domains"
 
-#[project.readme]
-#readme = "README.rst"
-#content-type = "text/x-rst"
+[project.readme]
+readme = "README.rst"
+content-type = "text/x-rst"
 
-#[project.urls]
-#Homepage = "https://github.com/FloSeu/GAIN-GRN"
+[project.urls]
+Homepage = "https://github.com/FloSeu/GAIN-GRN"
 #Issues = "https://github.com/FloSeu/GAIN-GRN/issues"
-#
-#requires-python = ">=3.9"
-#classifiers = [
-#    "Programming Language :: Python :: 3",
-#    "License :: OSI Approved :: GNU General Public License (GPL)",
-#    "Operating System :: Unix/Linux",
-#]
+
+requires-python = ">=3.9"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: GNU General Public License (GPL)",
+    "Operating System :: Unix/Linux",
+]
 dependencies = [
     "matplotlib>=3.7.1",
     "numpy",
