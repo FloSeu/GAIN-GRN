@@ -21,8 +21,8 @@ class TestBinaries(unittest.TestCase):
     def test_stride(self):
         pdb_file = "test_data/A_A0A2Y9F628.pdb"
         out_file = "stride_test.out"
-        self.assertTrue(os.path.isfile(self.STRIDE_BIN))
-        stride_command = f"{self.STRIDE_BIN} {pdb_file} -f{out_file}"
+        self.assertTrue(os.path.isfile(STRIDE_BIN))
+        stride_command = f"{STRIDE_BIN} {pdb_file} -f{out_file}"
         exit_code = gaingrn.scripts.io.run_command(stride_command)
         self.assertTrue(exit_code == 0)
         self.assertTrue(os.path.isfile(out_file))
@@ -38,8 +38,8 @@ class TestBinaries(unittest.TestCase):
 
         out_file = "gesamt.test.out"
 
-        self.assertTrue(os.path.isfile(self.GESAMT_BIN))
-        gesamt_command = f'{self.GESAMT_BIN} {template_pdb} {mobile_pdb}'
+        self.assertTrue(os.path.isfile(GESAMT_BIN))
+        gesamt_command = f'{GESAMT_BIN} {template_pdb} {mobile_pdb}'
         gaingrn.scripts.io.run_command(gesamt_command, out_file=out_file)
 
         self.assertTrue(os.path.isfile(out_file))
@@ -187,8 +187,8 @@ class TestClasses(unittest.TestCase):
 
 if __name__ == '__main__':
     # Get STRIDE and GESAMT binary from SYSTEM.
-    TestBinaries.STRIDE_BIN = os.environ.get('STRIDE_BIN', TestBinaries.STRIDE_BIN)
-    TestBinaries.GESAMT_BIN = os.environ.get('GESAMT_BIN', TestBinaries.GESAMT_BIN)
-    print("FOUND BINARIES: ", TestBinaries.STRIDE_BIN, TestBinaries.GESAMT_BIN)
+    STRIDE_BIN = os.environ.get('STRIDE_BIN')
+    GESAMT_BIN = os.environ.get('GESAMT_BIN')
+    print("FOUND BINARIES: ", STRIDE_BIN, GESAMT_BIN)
 
     unittest.main()
