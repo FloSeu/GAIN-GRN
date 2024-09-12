@@ -8,14 +8,14 @@ import pandas as pd
 import multiprocessing as mp
 
 # Get the data; the link might change TODO
-def download_data(url='https://zenodo.org/uploads/12515545/gaingrn_data.tgz', target_directory=f"{os.getcwd().replace('gaingrn','data')}"):
+def download_data(url='https://zenodo.org/uploads/12515545/gaingrn_data.tgz', target_directory=f"{os.getcwd().replace('/gaingrn','/')}"):
     # Ensure the target directory exists 
     os.makedirs(target_directory, exist_ok=True)
     # Download the file 
     response = requests.get(url, stream=True)
     response.raise_for_status() # Check for request errors
     # # Define the path for the temporary file 
-    temp_file_path = os.path.join(target_directory, "temp_file.tgz") 
+    temp_file_path = os.path.join(target_directory, "gaingrn_data.tgz") 
     # Write the content to a temporary file
     with open(temp_file_path, 'wb') as file: 
         for chunk in response.iter_content(chunk_size=8192): 

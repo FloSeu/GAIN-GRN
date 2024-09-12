@@ -3,19 +3,6 @@ GAIN-GRN: A Generic Residue Numbering Scheme for GPCR Autoproteolysis Inducing (
 
 |Python| |Jupyter| |DOI| |Zenodo| |License|
 
-..
-   .. figure:: doc/imgs/banner.png
-      :scale: 33%
-
-   .. figure:: doc/imgs/distro_and_violin.png
-      :scale: 25%
-
-   .. figure:: doc/imgs/timedep_ctc_matrix.png
-      :scale: 55%
-
-   .. figure:: doc/imgs/interface.combined.png
-      :scale: 33%
-
 ``GAIN-GRN`` is a Python module that provides the full workflow for establishing a generic residue numbering (GRN) scheme with a pre-calculated dataset of PDB structures, based on detection and filtering
 of GAIN domains, determining the variance of the GAIN domain dataset and establishing templates for structural alignments alongside the secondary structural elements and their centers. With a complete set of
 template structures, their segments and their segment centers, a dynamic notebook is provided to dynamically assign the GAIN-GRN to any GAIN domain, including domains of the related Polycystic Kidney disease / 
