@@ -1,7 +1,7 @@
 GAIN-GRN: A Generic Residue Numbering Scheme for GPCR Autoproteolysis Inducing (GAIN) Domains
 ===================================================================================
 
-|Python| |Jupyter| |DOI| |License|
+|Python| |Jupyter| |DOI| |Zenodo| |License|
 
 ..
    .. figure:: doc/imgs/banner.png
@@ -97,3 +97,7 @@ Status
  .. |DOI| image::
     https://img.shields.io/badge/DOI-10.21203%2Frs.3.rs--4761600%2Fv1-blue
     :target: https://doi.org/10.21203/rs.3.rs-4761600/v1
+
+.. |Zenodo| image:: 
+   https://zenodo.org/badge/DOI/10.5281/zenodo.12515545.svg
+    :target: https://doi.org/10.5281/zenodo.12515545
