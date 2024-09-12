@@ -21,7 +21,7 @@ A similar procedure is done for PKD1/PKD1L1 GAIN domain models in |JLogo| `pkd_g
 
 Two sets of templates exist for each respective subdomain to account for their different degrees of conservation. The template selection and following curation workflow look as follows:
 
-.. figure:: figures/workflow2.png
+.. figure:: figures/workflow.png
    :width: 600
 
 Subselections are created based on manually defined criteria (Here, we use aGPCR homologs, i. e. "ADGRA2") and each subselection is aligned to itself via GESAMT, creating an n² RMSD matrix.
