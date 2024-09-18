@@ -26,6 +26,25 @@ def download_data(url='https://zenodo.org/uploads/12515545/gaingrn_data.tgz', ta
 
     print("Download and Extraction complete.")
 
+# Get the PDBs; the link might change TODO
+def download_pdbs(url='https://zenodo.org/uploads/12515545/agpcr_gains.tgz', target_directory=str):
+    # Ensure the target directory exists 
+    os.makedirs(target_directory, exist_ok=True)
+    # Download the file 
+    response = requests.get(url, stream=True)
+    response.raise_for_status() # Check for request errors
+    # # Define the path for the temporary file 
+    temp_file_path = os.path.join(target_directory, "gaingrn_data.tgz") 
+    # Write the content to a temporary file
+    with open(temp_file_path, 'wb') as file: 
+        for chunk in response.iter_content(chunk_size=8192): 
+            file.write(chunk) 
+    # Extract the tar.gz file
+    with tarfile.open(temp_file_path, 'r:gz') as tar: 
+        tar.extractall(path=target_directory)
+
+    print("Download and Extraction complete.")
+
 # executing binaries
 
 def run_command(cmd, out_file=None, cwd=None):
