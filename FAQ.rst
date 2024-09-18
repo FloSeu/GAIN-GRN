@@ -3,7 +3,15 @@ Frequently Asked Questions
 
 **How can I get the data and PDBs needed in the data/ directory?**
 
-Use the provided function *gaingrn.scripts.io.download_data()* / *gaingrn.scripts.io.download_pdbs(target_directory='path/to/your/PDB_DIR')* or manually get the tgz from the `zenodo repository <https://dx.doi.org/10.5281/zenodo.12515545>`_.
+Use the provided function#
+
+.. code:: python
+
+   gaingrn.scripts.io.download_data()
+
+   gaingrn.scripts.io.download_pdbs(target_directory='path/to/your/PDB_DIR') 
+   
+or manually retrieve the archives from the `zenodo repository <https://dx.doi.org/10.5281/zenodo.12515545>`_.
 
 **Can this approach be generalized to any protein domain?**
 
@@ -31,5 +39,5 @@ use the *Uniprot Domain* entries of better conserved domains, i.e. EGF, to extra
 The analysis of cancer enrichment provides only a correlation to cancer, not a causation. The datasets provided in the `Cancer Genome Atlas <https://portal.gdc.cancer.gov>`_ only map variances of cancer 
 patients. Therefore, we cannot reliably assess that this mutation *causes* cancer, only that it might be associated. The associated impact scores like `SIFT <https://www.ncbi.nlm.nih.gov/pmc/articles/PMC168916>`_
 and `Polyphen <getetics.bwh.harvard.edu/pph2/>`_ try to assess the mutational impact by approximating the physicochemical impact of an amino-acid substutition. Therefore, we advise to use the position-specific
-analysis tools provided in `6 Cancer Mutation Analysis <https://github.com/FloSeu/GAIN-GRN/blob/main/gaingrn/6_cancer_analysis.ipynb>`_ to assess all natural and cancer variants for your GRN-labeled position of interest, 
+analysis tools provided in `5 Cancer Mutation Analysis <https://github.com/FloSeu/GAIN-GRN/blob/main/gaingrn/5_cancer_analysis.ipynb>`_ to assess all natural and cancer variants for your GRN-labeled position of interest, 
 before using expensive wet-lab workflows to test.
