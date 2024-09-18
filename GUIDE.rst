@@ -3,8 +3,11 @@ GAIN-GRN: A Generic Residue Numbering Scheme for GPCR Autoproteolysis Inducing (
 
 This documentation contains explanations for the contents and usage of the Jupyter notebooks and scripts contained in the package.
 
-|JLogo| `1 Filter Stage <https://github.com/FloSeu/GAIN-GRN/blob/main/gaingrn/1_filter_stage.ipynb>`_
-=====================================================================================================
+|JLogo| `(0) Filter Stage <https://github.com/FloSeu/GAIN-GRN/blob/main/gaingrn/0_filter_stage.ipynb>`_
+-----------------------------------------------------------------------------------------------------
+
+*This notebook is mainly for documentation purposes, since it is for pre-filtering the 3D models before the analysis.*
+Missing data for re-running this notebook can be requested from the author if desired.
 
 Here, the GAIN domain 3D models and their secondary structure data evaluated by `STRIDE <https://webclu.bio.wzw.tum.de/stride/>`_ are filtered according to GAIN domain detection criteria:
    
@@ -16,7 +19,7 @@ It is stored in a PKL file.
 
 A similar procedure is done for PKD1/PKD1L1 GAIN domain models in |JLogo| `pkd_gain/pkd_gain_processing.ipynb <gaingrn/pkd_gain/pkd_gain_processing.iypnb>`_.
 
-|JLogo| `2 Template Selection <https://github.com/FloSeu/GAIN-GRN/blob/main/gaingrn/2_template_selection.ipynb>`_
+|JLogo| `1 Template Selection <https://github.com/FloSeu/GAIN-GRN/blob/main/gaingrn/1_template_selection.ipynb>`_
 =================================================================================================================
 
 Two sets of templates exist for each respective subdomain to account for their different degrees of conservation. The template selection and following curation workflow look as follows:
@@ -30,7 +33,7 @@ If the variance is sufficiently small and coverage is decent, the centroid of th
 *valid collection* and MSAs are created for each segment by stacking the pairwise residue matches. From these MSAs, the segment center can be extracted by finding the highest occupancy and conservation
 in the segment resdiues.
 
-|JLogo| `3 Template Curation <https://github.com/FloSeu/GAIN-GRN/blob/main/gaingrn/3_template_curation.ipynb>`_
+|JLogo| `2 Template Curation <https://github.com/FloSeu/GAIN-GRN/blob/main/gaingrn/2_template_curation.ipynb>`_
 ===============================================================================================================
 
 The previously defined *potential templates* with their matches are assessed for coverage. For this, evaluate each recpeptor subselectionand use the respective sets of pairwise alignments to the 
@@ -45,19 +48,19 @@ The previously defined *potential templates* with their matches are assessed for
 Not all GAIN models have for example six helices in Subdomain A, evidence by the **X** markers ni the figure. Assessing all templates, each receptor homolog has a template assigned for each subdomain that
 covers all segments with sufficient quality (see in `template_data.json <data/template_data.json>`_).
 
-|JLogo| `4 Assign the GAIN-GRN <https://github.com/FloSeu/GAIN-GRN/blob/main/gaingrn/4_assign_gaingrn.ipynb>`_
+|JLogo| `3 Assign the GAIN-GRN <https://github.com/FloSeu/GAIN-GRN/blob/main/gaingrn/3_assign_gaingrn.ipynb>`_
 ==============================================================================================================
 
 After having the template PDB files and the respective information on segments and segment centers, we can now create a full GRN assignment of all GAIN domain models. In this notebook, GAIN-GRN is
 assigned to specific *GainDomain* objects or to a whole *GainCollection*. For faster assignment, a parallelized version is available: |PLogo| `run_indexing.py <run_indexing.py>`_. The full set of alignment data
 is stored in a pickle file (`data/stal_indexing.pkl <data/stal_indeixng.pkl>`_)
 
-|JLogo| `5 GAIN-GRN Dataset Statistics and Analysis <https://github.com/FloSeu/GAIN-GRN/blob/main/gaingrn/5_gaingrn_statistics.ipynb>`_
+|JLogo| `4 GAIN-GRN Dataset Statistics and Analysis <https://github.com/FloSeu/GAIN-GRN/blob/main/gaingrn/4_gaingrn_statistics.ipynb>`_
 =======================================================================================================================================
 
 The complete set of GRN assignments can now be used to statistically evaluate the GAIN domain model dataset. Here, conservation per residue and segment occupation are assessed (see Figure 2 and Supp. Fig. 1).
 
-|JLogo| `6 Cancer Mutation Analysis <https://github.com/FloSeu/GAIN-GRN/blob/main/gaingrn/6_cancer_analysis.ipynb>`_
+|JLogo| `5 Cancer Mutation Analysis <https://github.com/FloSeu/GAIN-GRN/blob/main/gaingrn/5_cancer_analysis.ipynb>`_
 ====================================================================================================================
 
 As an application for the GAIN-GRN, the natural variant and cancer mutation data for the human aGPCR can be mapped to their respective GRN labels. This enables the calculation of a cancer enrichment score
