@@ -3,7 +3,7 @@ Frequently Asked Questions
 
 **How can I get the data and PDBs needed in the data/ directory?**
 
-Use the provided function#
+Use the provided functions:
 
 .. code:: python
 
@@ -12,6 +12,7 @@ Use the provided function#
    gaingrn.scripts.io.download_pdbs(target_directory='path/to/your/PDB_DIR') 
    
 or manually retrieve the archives from the `zenodo repository <https://dx.doi.org/10.5281/zenodo.12515545>`_.
+
 
 **Can this approach be generalized to any protein domain?**
 
@@ -33,6 +34,7 @@ use the *Uniprot Domain* entries of better conserved domains, i.e. EGF, to extra
    - Are there different families of proteins in your dataset? You should assess the structural variance in each of subselections until you reach a sufficient level of coverage.
 
    - Assign names to segments manually in your *template data*. For this, you can either do a "maximalist approach", where you assign names to as many segments as possible, regardless of conservation, or you stick to a "minimalist approach", where only the most conserved segments are labeled.
+
 
 **Are cancer-enriched positions all relevant for wet-lab experiments?**
 
