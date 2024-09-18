@@ -3,6 +3,24 @@ GAIN-GRN: A Generic Residue Numbering Scheme for GPCR Autoproteolysis Inducing (
 
 This documentation contains explanations for the contents and usage of the Jupyter notebooks and scripts contained in the package.
 
+
+Preface
+-------
+
+For the notebooks to work, we need the GAINGRN data downloaded via:
+
+.. code:: python
+
+   gaingrn.scripts.io.download_data()
+
+and for the notebook 1 and 2 to function, the set of aGPCR GAIN PDB models is needed. It can be downloaded via:
+
+.. code:: python
+
+   gaingrn.scripts.io.download_pdbs(target_directory='path/to/your/PDB_DIR')
+
+Both archives can also be retrieved manually from the `zenodo repository <https://dx.doi.org/10.5281/zenodo.12515545>`_
+
 |JLogo| `(0) Filter Stage <https://github.com/FloSeu/GAIN-GRN/blob/main/gaingrn/0_filter_stage.ipynb>`_
 -----------------------------------------------------------------------------------------------------
 
@@ -47,6 +65,8 @@ The previously defined *potential templates* with their matches are assessed for
 
 Not all GAIN models have for example six helices in Subdomain A, evidence by the **X** markers ni the figure. Assessing all templates, each receptor homolog has a template assigned for each subdomain that
 covers all segments with sufficient quality (see in `template_data.json <data/template_data.json>`_).
+
+*If running the template curation, you need the folders for a complete matching of the dataset against each template via pairwise GESAMT. Run these via
 
 |JLogo| `3 Assign the GAIN-GRN <https://github.com/FloSeu/GAIN-GRN/blob/main/gaingrn/3_assign_gaingrn.ipynb>`_
 ==============================================================================================================

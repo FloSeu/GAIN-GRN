@@ -1,9 +1,9 @@
 Frequently Asked Questions
 ==========================
 
-**How can I get the data needed in the data/ directory?**
+**How can I get the data and PDBs needed in the data/ directory?**
 
-Use the provided function *gaingrn.scripts.io.download_data()* or manually get the tgz from the `zenodo repository <https://dx.doi.org/10.5281/zenodo.12515545>`_.
+Use the provided function *gaingrn.scripts.io.download_data()* / *gaingrn.scripts.io.download_pdbs(target_directory='path/to/your/PDB_DIR')* or manually get the tgz from the `zenodo repository <https://dx.doi.org/10.5281/zenodo.12515545>`_.
 
 **Can this approach be generalized to any protein domain?**
 
