@@ -28,13 +28,13 @@ Clone the repository, cd into the ``GAIN-GRN`` folder and install via ``pip``
 
    pip install gaingrn
 
-To be able to use the package, notebooks and tests, please use the ``gaingrn.scripts.io.download_data()`` function to download the necessary data from the `zenodo repository <https://dx.doi.org/10.5281/zenodo.12515545>`_.
+To be able to use the package, notebooks and tests, please use the ``gaingrn.utils.io.download_data()`` function to download the necessary data from the `zenodo repository <https://dx.doi.org/10.5281/zenodo.12515545>`_.
 in your cloned repository, use *python* with:
 
 .. code:: python
 
-   import gaingrn.scripts.io
-   gaingrn.scripts.io.download_data()
+   import gaingrn.utils.io
+   gaingrn.utils.io.download_data()
 
 Furthermore, if you want to execute *GESAMT* and *STRIDE*, you will need the corresponding binaries and set them via:
 

@@ -25,7 +25,7 @@ class TestBinaries(unittest.TestCase):
         out_file = "stride_test.out"
         self.assertTrue(os.path.isfile(STRIDE_BIN))
         stride_command = f"{STRIDE_BIN} {pdb_file} -f{out_file}"
-        exit_code = gaingrn.scripts.io.run_command(stride_command)
+        exit_code = gaingrn.utils.io.run_command(stride_command)
         self.assertTrue(exit_code == 0)
         self.assertTrue(os.path.isfile(out_file))
         with open(out_file) as of:
@@ -44,7 +44,7 @@ class TestBinaries(unittest.TestCase):
 
         self.assertTrue(os.path.isfile(GESAMT_BIN))
         gesamt_command = f'{GESAMT_BIN} {template_pdb} {mobile_pdb}'
-        gaingrn.scripts.io.run_command(gesamt_command, out_file=out_file)
+        gaingrn.utils.io.run_command(gesamt_command, out_file=out_file)
 
         self.assertTrue(os.path.isfile(out_file))
         with open(out_file) as of:
@@ -79,7 +79,7 @@ class TestFunctions(unittest.TestCase):
 
         # With the object, feed in the PDB for structural alignment and the template data
         print("\nIndexing human PKD1 onto the GAIN-GRN. Expect a number of unindexed segments on the extra Subdomain...")
-        element_intervals, element_centers, residue_labels, unindexed_elements, params = gaingrn.scripts.assign.assign_indexing(pkd_gain, 
+        element_intervals, element_centers, residue_labels, unindexed_elements, params = gaingrn.utils.assign.assign_indexing(pkd_gain, 
                                                                                     file_prefix=f"hpkd1/", 
                                                                                     gain_pdb="../data/example/PKD1_HUMAN_unrelaxed_rank_1_model_3.pdb",
                                                                                     template_dir='../data/template_pdbs/',
@@ -115,7 +115,7 @@ class TestFunctions(unittest.TestCase):
     def test_get_template_information(self):
         # Test template_utils via getting infomation of a template.
         valid_collection = pd.read_pickle("../data/valid_collection.pkl")
-        centers, center_quality, aln_indices, pdb_centers= gaingrn.scripts.template_utils.get_template_information(identifier='A0A6G1Q0B9', gain_collection=valid_collection, subdomain='a')
+        centers, center_quality, aln_indices, pdb_centers= gaingrn.utils.template_utils.get_template_information(identifier='A0A6G1Q0B9', gain_collection=valid_collection, subdomain='a')
         self.assertTrue(len(centers.keys()) == 6)
     
 class TestClasses(unittest.TestCase):
@@ -129,18 +129,18 @@ class TestClasses(unittest.TestCase):
         stride_files = glob.glob("./test_data/gain_collection/stride/*.stride")
         gps_minus_one = 6553
         aln_cutoff = 6567
-        alignment_dict = gaingrn.scripts.io.read_alignment(alignment_file, aln_cutoff)
-        quality = gaingrn.scripts.io.read_quality(quality_file)
+        alignment_dict = gaingrn.utils.io.read_alignment(alignment_file, aln_cutoff)
+        quality = gaingrn.utils.io.read_quality(quality_file)
 
-        valid_seqs = gaingrn.scripts.io.read_multi_seq("./test_data/gain_collection/offset_test_seqs.fa") # MODEL SEQUENCES
-        full_seqs = gaingrn.scripts.io.read_alignment( "./test_data/gain_collection/full_test_seqs.fa") # UNIPROT QUERY SEQUENCES
+        valid_seqs = gaingrn.utils.io.read_multi_seq("./test_data/gain_collection/offset_test_seqs.fa") # MODEL SEQUENCES
+        full_seqs = gaingrn.utils.io.read_alignment( "./test_data/gain_collection/full_test_seqs.fa") # UNIPROT QUERY SEQUENCES
  
-        valid_adj_seqs = gaingrn.scripts.alignment_utils.offset_sequences(full_seqs=full_seqs, short_seqs=valid_seqs)
+        valid_adj_seqs = gaingrn.utils.alignment_utils.offset_sequences(full_seqs=full_seqs, short_seqs=valid_seqs)
                     
         print(f"Adjusted the sequence offset of {len(valid_adj_seqs)} sequences.")
 
-        alignment_dict = gaingrn.scripts.io.read_alignment(alignment_file, aln_cutoff)
-        quality = gaingrn.scripts.io.read_quality(quality_file)
+        alignment_dict = gaingrn.utils.io.read_alignment(alignment_file, aln_cutoff)
+        quality = gaingrn.utils.io.read_quality(quality_file)
 
         test_collection = GainCollection(  alignment_file = alignment_file,
                                     aln_cutoff = aln_cutoff,
@@ -175,13 +175,13 @@ class TestClasses(unittest.TestCase):
         human_sequences = ["".join(gain.sequence) for gain in human_collection.collection]
         seq_file = '../data/seq_aln/all_query_sequences.fasta'
 
-        human_fasta_offsets = gaingrn.scripts.alignment_utils.find_offsets(seq_file,
+        human_fasta_offsets = gaingrn.utils.alignment_utils.find_offsets(seq_file,
                                         human_accessions, 
                                         human_sequences)
 
         human_indexing = np.load("../data/human_indexing.pkl", allow_pickle=True)
 
-        appended_human_collection = gaingrn.scripts.assign.add_grn_labels(human_collection, human_indexing)
+        appended_human_collection = gaingrn.utils.assign.add_grn_labels(human_collection, human_indexing)
 
         segments = ['H1','H2','H3','H4','H5','H6','S1','S2','S3','S4','S5','S6','S7','S8','S9','S10','S11','S12','S13','S14','GPS']
 
