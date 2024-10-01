@@ -1,4 +1,4 @@
-## scripts/structure_utils.py
+## utils/structure_utils.py
 # Functions for extracting, parsing and handling secondary strcutural data
 
 import re

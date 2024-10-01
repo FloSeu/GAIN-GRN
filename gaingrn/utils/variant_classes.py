@@ -1,6 +1,6 @@
-## scripts/variant_classes.py
+## utils/variant_classes.py
 # Contains classes for SNP and cancer mutation analysis.
-import gaingrn.scripts.mutation_utils
+import gaingrn.utils.mutation_utils
 import numpy as np
 
 class MutationAnalysis:

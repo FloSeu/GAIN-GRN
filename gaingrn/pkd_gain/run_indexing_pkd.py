@@ -6,7 +6,7 @@
 import glob, pickle, os
 import pandas as pd
 
-from gaingrn.scripts.indexing_classes import StAlIndexing
+from gaingrn.utils.indexing_classes import StAlIndexing
 
 try: 
     GESAMT_BIN = os.environ.get('GESAMT_BIN')
@@ -22,7 +22,7 @@ if __name__ == '__main__':
     valid_collection = pd.read_pickle(f"{pkd_folder}/pkd_collection.pkl")
     #all_accessions = [gain.name.split("-")[0].split("_")[0] for gain in valid_collection.collection]
     #all_sequences = ["".join(gain.sequence) for gain in valid_collection.collection]
-    #fasta_offsets = gaingrn.scripts.alignment_utils.find_offsets("/home/hildilab/projects/GPS_massif/uniprot_query/agpcr_celsr.fasta", 
+    #fasta_offsets = gaingrn.utils.alignment_utils.find_offsets("/home/hildilab/projects/GPS_massif/uniprot_query/agpcr_celsr.fasta",
     #                                all_accessions, 
     #                                all_sequences)
     # DEBUG:

@@ -2,8 +2,8 @@
 #       In this case, we feed in the GAIN pdb from human PKD1 alongside its STRIDE output file
 
 # LOCAL IMPORTS
-import gaingrn.scripts.assign
-from gaingrn.scripts.gain_classes import GainDomainNoAln
+import gaingrn.utils.assign
+from gaingrn.utils.gain_classes import GainDomainNoAln
 import os
 
 try: 

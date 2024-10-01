@@ -1,8 +1,8 @@
-## scripts/request_utils.py
+## utils/request_utils.py
 #   Handles and extracts HTTP requests from the UniProtKB database and AlphafoldDB
 
 import requests, os
-import gaingrn.scripts.io
+import gaingrn.utils.io
 
 # requests
 

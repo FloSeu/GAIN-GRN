@@ -1,4 +1,4 @@
-## scripts/plotting_utils.py
+## utils/plotting_utils.py
 # contains different utilities for plotting
 
 from matplotlib import pyplot as plt

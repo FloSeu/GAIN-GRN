@@ -7,9 +7,9 @@ import os
 from types import SimpleNamespace
 import numpy as np
 
-from gaingrn.scripts.io import get_agpcr_type, read_gesamt_pairs, run_logged_command
-from gaingrn.scripts.structure_utils import get_pdb_extents
-from gaingrn.scripts.template_utils import find_center_matches, find_best_templates
+from gaingrn.utils.io import get_agpcr_type, read_gesamt_pairs, run_logged_command
+from gaingrn.utils.structure_utils import get_pdb_extents
+from gaingrn.utils.template_utils import find_center_matches, find_best_templates
 
 
 def create_subdomain_indexing(gain_obj, subdomain, actual_centers, threshold=3, padding=1, split_mode='single', silent=False,  debug=False):

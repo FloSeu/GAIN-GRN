@@ -1,9 +1,9 @@
 ## scritps/alignment_utils.py
 # Contains functions for handling alignment-realted operations.
 
-from gaingrn.scripts.structure_utils import find_the_start
-import gaingrn.scripts.alignment_utils
-import gaingrn.scripts.io
+from gaingrn.utils.structure_utils import find_the_start
+import gaingrn.utils.alignment_utils
+import gaingrn.utils.io
 
 import numpy as np
 
@@ -30,9 +30,9 @@ def get_indices(name, sequence, alignment_file, aln_cutoff, alignment_dict=None,
         mapper : list
             A list of alignment indices for each residue index of the sequence
     '''
-    #print(f"[DEBUG] gaingrn.scripts.alignment_utils.get_indices : {sequence.shape = }")
+    #print(f"[DEBUG] gaingrn.utils.alignment_utils.get_indices : {sequence.shape = }")
     mapper = np.zeros([sequence.shape[0]],dtype=int) # Initialize the mapper for output
-    #print(f"[DEBUG] gaingrn.scripts.alignment_utils.get_indices : {mapper.shape = }")
+    #print(f"[DEBUG] gaingrn.utils.alignment_utils.get_indices : {mapper.shape = }")
     if not alignment_dict:
         alignment_dict = gaingrn.scripts.io.read_alignment(alignment_file, aln_cutoff)
 
@@ -40,7 +40,7 @@ def get_indices(name, sequence, alignment_file, aln_cutoff, alignment_dict=None,
     try: nam = name.split(".fa")[0]
     except: nam = name
 
-    #print(f"[DEBUG] gaingrn.scripts.alignment_utils.get_indices : \n\t{nam = }, is it in the dict? {nam in alignment_dict.keys()}")
+    #print(f"[DEBUG] gaingrn.utils.alignment_utils.get_indices : \n\t{nam = }, is it in the dict? {nam in alignment_dict.keys()}")
     try:
         align_seq = alignment_dict[nam]#[::-1] # make the reference alignment reverse to compare rev 2 rev
     except KeyError:
@@ -77,7 +77,7 @@ def get_indices(name, sequence, alignment_file, aln_cutoff, alignment_dict=None,
                     print("[DEBUG] WARNING! OUT OF PLACE RESIDUE FOUND:", align_seq[align_index], "@", align_index, "while searching for", residue, i)
             align_index += 1
     # return the matching list of alignment indices for each Sequence residue
-    #print(f"[DEBUG] gaingrn.scripts.alignment_utils.get_indices : mapper constructed successfully.")
+    #print(f"[DEBUG] gaingrn.utils.alignment_utils.get_indices : mapper constructed successfully.")
     #print(f"{mapper}")
     return mapper
 

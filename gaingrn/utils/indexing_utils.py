@@ -1,9 +1,9 @@
-## scripts/indexing_utils.py
+## utils/indexing_utils.py
 # Contains functions for handling and analyzing the completely indexed dataset via StAlIndexing class instances
 
 import numpy as np
 import pandas as pd
-import gaingrn.scripts.io
+import gaingrn.utils.io
 
 def get_loops(indexing_dir):
     # Returns a named dict with loop lengths, i.e. {"H1-H2":13, "H8-S1":12}
@@ -202,7 +202,7 @@ def mark_seg_cons(stal_indexing, rr_occ, elements, uniprot_id, pdbfile, outfile,
         res2value[resid] = occ
 
     gaingrn.scripts.io.label2b(pdbfile, outfile, res2value=res2value, fill_b=fill_b)
-    print("gaingrn.scripts.indexing_utils.mark_seg_cons : Done.")
+    print("gaingrn.utils.indexing_utils.mark_seg_cons : Done.")
 
 def mark_pos_cons(stal_indexing, pos_occ_dict, uniprot_id, pdbfile, outfile, fill_b=None):
     # create a b_factor map, mapping POSITION occupancy in a given GAIN
@@ -222,7 +222,7 @@ def mark_pos_cons(stal_indexing, pos_occ_dict, uniprot_id, pdbfile, outfile, fil
         res2value[resid] = occ
 
     gaingrn.scripts.io.label2b(pdbfile, outfile, res2value=res2value, fill_b=fill_b)
-    print("gaingrn.scripts.indexing_utils.mark_pos_cons : Done.")
+    print("gaingrn.utils.indexing_utils.mark_pos_cons : Done.")
 
 def get_elem_seq(uniprot, stal_indexing, gain_collection, segment):
     # Get the sequence of a specific element from a specific protein from the dataset.

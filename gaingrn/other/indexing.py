@@ -1,4 +1,4 @@
-## scripts/indexing.py
+## utils/indexing.py
 
 import numpy as np
 

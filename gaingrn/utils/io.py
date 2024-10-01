@@ -1,4 +1,4 @@
-## scripts/io.py
+## utils/io.py
 #   contains functions for file input/output operations and running commands like STRIDE as command line.
 
 import os, json, re, glob, shlex, shutil, requests, tarfile

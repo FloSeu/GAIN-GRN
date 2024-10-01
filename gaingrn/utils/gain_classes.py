@@ -9,9 +9,9 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-import gaingrn.scripts.alignment_utils
-import gaingrn.scripts.io
-import gaingrn.scripts.structure_utils
+import gaingrn.utils.alignment_utils
+import gaingrn.utils.io
+import gaingrn.utils.structure_utils
 
 class GainCollection:
     ''' 
@@ -587,7 +587,7 @@ class GainDomain:
         if debug:
             print(f"[DEBUG] GainDomain : {self.alignment_indices = }")
 
-        if self.alignment_indices is None: # Check if gaingrn.scripts.alignment_utils.get_indices failed
+        if self.alignment_indices is None: # Check if gaingrn.utils.alignment_utils.get_indices failed
             print("[WARNING]: Empty alignment indices detected. If this is unintended, check the alignment file.\n", self.name)
             self.isValid = False
             return

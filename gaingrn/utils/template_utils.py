@@ -1,4 +1,4 @@
-## scripts/template_utils.py
+## utils/template_utils.py
 # Functions for finding a template via GainDomain subselection and GESAMT pairwise structural alignments.
 import glob, os, re, shutil, math
 import numpy as np
@@ -6,8 +6,8 @@ from sklearn.cluster import AgglomerativeClustering
 from sklearn.cluster import MiniBatchKMeans
 from sklearn.decomposition import PCA
 
-from gaingrn.scripts.io import read_gesamt_pairs, run_logged_command, get_agpcr_type
-from gaingrn.scripts.structure_utils import get_pdb_extents
+from gaingrn.utils.io import read_gesamt_pairs, run_logged_command, get_agpcr_type
+from gaingrn.utils.structure_utils import get_pdb_extents
 
 def space_distance(coords1, coords2):
     # Pythagorean distance of two sets of coords
