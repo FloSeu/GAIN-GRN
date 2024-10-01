@@ -4,9 +4,20 @@ GAIN-GRN: A Generic Residue Numbering Scheme for GPCR Autoproteolysis Inducing (
 |Python| |Jupyter| |DOI| |Zenodo| |License|
 
 ``GAIN-GRN`` is a Python module that provides the full workflow for establishing a generic residue numbering (GRN) scheme with a pre-calculated dataset of PDB structures, based on detection and filtering
-of GAIN domains, determining the variance of the GAIN domain dataset and establishing templates for structural alignments alongside the secondary structural elements and their centers. With a complete set of
-template structures, their segments and their segment centers, a dynamic notebook is provided to dynamically assign the GAIN-GRN to any GAIN domain, including domains of the related Polycystic Kidney disease / 
+of GAIN domains, determining the variance of the GAIN domain dataset and establishing templates for structural alignments alongside the secondary structural elements and their centers.
+
+It is the package behind the `GPCRdb <https://www.gpcrdb.org>`_ 's adhesion GPCR (aGPCR) nomenclature functionality, introduced in this study:
+
+* Generic residue numbering of the GAIN domain of adhesion GPCRs
+    | Florian Seufert, Guillermo Pérez-Hernández, Gáspár Pándy-Szekeres, Ramon Guixà-González, Tobias Langenhan, David E. Gloriam, Peter W. Hildebrand
+    | ReasearchSquare
+    | https://doi.org/10.21203/rs.3.rs-4761600/v1
+
+**TLDR** to locally replicate what the above functionality does online, and tag a pdbfile with GRN labels, we have provided a Jupyter notebook to dynamically assign the GAIN-GRN labels to any GAIN domain, including domains of the related Polycystic Kidney disease /
 Polycystic Kidney disease-like (PKD1/PKD1L1) GAIN domains.
+
+In order to run the workflow locally, you have to install the third party dependencies `GESAMT <https://www.ccp4.ac.uk/download/>`_ via ccp4, `STRIDE <https://webclu.bio.wzw.tum.de/stride/install.html>`_ as well as `curl <https://curl.se/>`_ for retrieving `UniProt <https://www.uniprot.org>`_ and `AlphaFold data <https://alphafold.ebi.ac.uk/>`_ data. For other uses, please refer to the `Usage Guide <GUIDE.rst>`_ and `FAQ <FAQ.rst>`_.
+
 
 Installation
 ============
