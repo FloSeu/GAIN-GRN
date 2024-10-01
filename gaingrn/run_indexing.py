@@ -5,8 +5,8 @@
 import glob, pickle, os
 import pandas as pd
 
-from gaingrn.scripts.indexing_classes import StAlIndexing
-from gaingrn.scripts.gain_classes import *
+from gaingrn.utils.indexing_classes import StAlIndexing
+from gaingrn.utils.gain_classes import *
 try: 
     GESAMT_BIN = os.environ.get('GESAMT_BIN')
 except:

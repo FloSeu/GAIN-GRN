@@ -3,14 +3,14 @@ import sys, os, re, glob
 
 sys.path.append('/home/hildilab/agpcr_nom/repo/')
 
-import gaingrn.scripts.alignment_utils
-import gaingrn.scripts.io
-from gaingrn.scripts.gain_classes import GainCollection, GainDomainNoAln
-import gaingrn.scripts.structure_utils
-import gaingrn.scripts.template_utils
-import gaingrn.scripts.assign
+import gaingrn.utils.alignment_utils
+import gaingrn.utils.io
+from gaingrn.utils.gain_classes import GainCollection, GainDomainNoAln
+import gaingrn.utils.structure_utils
+import gaingrn.utils.template_utils
+import gaingrn.utils.assign
 import pandas as pd
-from gaingrn.scripts.variant_classes import *
+from gaingrn.utils.variant_classes import *
 # Test functions have to start with "test_"
 
 class TestBinaries(unittest.TestCase):
