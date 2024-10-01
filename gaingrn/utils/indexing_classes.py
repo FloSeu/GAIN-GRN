@@ -43,7 +43,7 @@ class StAlIndexing:
                             for gain_idx, gain in enumerate(list_of_gain_obj)
                          ]
             print("Completed composing arg_list for assigning multithreaded indexing.", mp_arglist[:5],"\n", mp_arglist[-5:])
-            for result in pool.imap_unordered(gaingrn.scripts.assign.mp_assign_indexing, mp_arglist):
+            for result in pool.imap_unordered(gaingrn.utils.assign.mp_assign_indexing, mp_arglist):
                 # this is each instance of the above function return with the result[4] being the index
                 all_intervals[result[5]] = result[0]
                 all_centers[result[5]] = result[1]
@@ -57,7 +57,7 @@ class StAlIndexing:
         if n_threads == 1:
             print(f"StAlIndexing: Assigning indexing via single process.")
             for gain_index, gain in enumerate(list_of_gain_obj):
-                intervals, indexing_centers, indexing_dir, unindexed, params = gaingrn.scripts.assign.assign_indexing(gain, 
+                intervals, indexing_centers, indexing_dir, unindexed, params = gaingrn.utils.assign.assign_indexing(gain, 
                                                                                         file_prefix=f"{prefix}_{gain_index}", 
                                                                                         gain_pdb=find_pdb(gain.name, pdb_dir), 
                                                                                         template_dir=template_dir, 

@@ -66,8 +66,8 @@ def request_alphafolddb_model(uniprot_accession, tmp_dir):
     error_url = f'https://alphafold.ebi.ac.uk/files/{alphafold_id}-predicted_aligned_error_{database_version}.json'
 
     # This creates a PDB and a JSON file for the target protein. They need to be read.
-    gaingrn.scripts.io.run_command(cmd = f'curl {model_url} -o {tmp_dir}/{alphafold_id}.pdb')
-    gaingrn.scripts.io.run_command(cmd = f'curl {error_url} -o {tmp_dir}/{alphafold_id}.json')
+    gaingrn.utils.io.run_command(cmd = f'curl {model_url} -o {tmp_dir}/{alphafold_id}.pdb')
+    gaingrn.utils.io.run_command(cmd = f'curl {error_url} -o {tmp_dir}/{alphafold_id}.json')
     print(f"[NOTE] Done retrieving the model for {uniprot_accession} with the corresponding AlphaFoldDB accession {alphafold_id}.")
     
     data = open(f'{tmp_dir}/{alphafold_id}.pdb').readlines()[0]

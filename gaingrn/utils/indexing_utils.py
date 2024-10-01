@@ -201,7 +201,7 @@ def mark_seg_cons(stal_indexing, rr_occ, elements, uniprot_id, pdbfile, outfile,
         occ = occ_dict[segment]
         res2value[resid] = occ
 
-    gaingrn.scripts.io.label2b(pdbfile, outfile, res2value=res2value, fill_b=fill_b)
+    gaingrn.utils.io.label2b(pdbfile, outfile, res2value=res2value, fill_b=fill_b)
     print("gaingrn.utils.indexing_utils.mark_seg_cons : Done.")
 
 def mark_pos_cons(stal_indexing, pos_occ_dict, uniprot_id, pdbfile, outfile, fill_b=None):
@@ -221,7 +221,7 @@ def mark_pos_cons(stal_indexing, pos_occ_dict, uniprot_id, pdbfile, outfile, fil
         occ = pos_occ_dict[label]/14435 # divide absolute counts by number of total GAINs to normalize.
         res2value[resid] = occ
 
-    gaingrn.scripts.io.label2b(pdbfile, outfile, res2value=res2value, fill_b=fill_b)
+    gaingrn.utils.io.label2b(pdbfile, outfile, res2value=res2value, fill_b=fill_b)
     print("gaingrn.utils.indexing_utils.mark_pos_cons : Done.")
 
 def get_elem_seq(uniprot, stal_indexing, gain_collection, segment):
@@ -242,7 +242,7 @@ def get_elem_seq(uniprot, stal_indexing, gain_collection, segment):
 
 def count_receptors(gain_collection):
     # returns a list of the the receptor type for every GainDomain in the Colleciton and a dictionary with receptor:counts items
-    receptor_list = [gaingrn.scripts.io.get_agpcr_type(gain.name) for gain in gain_collection.collection]
+    receptor_list = [gaingrn.utils.io.get_agpcr_type(gain.name) for gain in gain_collection.collection]
     receptors, counts  = np.unique(receptor_list, return_counts=True)
     receptor_counts = dict(zip(receptors,counts))
     return receptor_list, receptor_counts

@@ -34,7 +34,7 @@ def get_indices(name, sequence, alignment_file, aln_cutoff, alignment_dict=None,
     mapper = np.zeros([sequence.shape[0]],dtype=int) # Initialize the mapper for output
     #print(f"[DEBUG] gaingrn.utils.alignment_utils.get_indices : {mapper.shape = }")
     if not alignment_dict:
-        alignment_dict = gaingrn.scripts.io.read_alignment(alignment_file, aln_cutoff)
+        alignment_dict = gaingrn.utils.io.read_alignment(alignment_file, aln_cutoff)
 
     # PATCH: If the name ends on ".fa", eliminate that.
     try: nam = name.split(".fa")[0]
@@ -149,7 +149,7 @@ def find_offsets(fasta_file, accessions, sequences):
     heads = np.array(headers)
     for idx, accession in enumerate(accessions):
         seq_idx = np.where(heads == accession)[0][0]
-        offset = gaingrn.scripts.alignment_utils.find_the_start(seqs[seq_idx], sequences[idx])
+        offset = gaingrn.utils.alignment_utils.find_the_start(seqs[seq_idx], sequences[idx])
         #print(offset)
         offsets.append(offset)
     

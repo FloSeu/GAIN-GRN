@@ -137,7 +137,7 @@ class GainCollection:
 
             for i, seq_file in enumerate(sequence_files):
 
-                name, seq = gaingrn.scripts.io.read_seq(seq_file, return_name = True)
+                name, seq = gaingrn.utils.io.read_seq(seq_file, return_name = True)
                 sequences[i] = (name, seq)
 
         elif (sequences is not None):
@@ -284,7 +284,7 @@ class GainCollection:
         out_dict = {}
         for gain in self.collection:
             sse_alignment_row = np.full([aln_cutoff], fill_value='-', dtype='<U1')
-            mapper = gaingrn.scripts.alignment_utils.get_indices(gain.name, gain.sequence, input_alignment, aln_cutoff)
+            mapper = gaingrn.utils.alignment_utils.get_indices(gain.name, gain.sequence, input_alignment, aln_cutoff)
             for seq_idx, sse_letter in enumerate(gain.sse_sequence_list):
                 sse_alignment_row[mapper[seq_idx]] = sse_letter
             out_dict[gain.name[:-3]] = sse_alignment_row
@@ -498,8 +498,8 @@ class GainDomain:
         if explicit_stride_file is None:
             explicit_stride_file = self.name.replace(".fa","")
 
-        self.complete_sse_dict = gaingrn.scripts.io.read_sse_loc(explicit_stride_file)
-        self.sse_sequence, self.outliers = gaingrn.scripts.io.read_sse_asg(explicit_stride_file)
+        self.complete_sse_dict = gaingrn.utils.io.read_sse_loc(explicit_stride_file)
+        self.sse_sequence, self.outliers = gaingrn.utils.io.read_sse_asg(explicit_stride_file)
 
         # Try to detect GAIN-like order of SSE. Frist criterion is a C-terminal strand being present (= Stachel/TA)
         try: 
@@ -512,7 +512,7 @@ class GainDomain:
 
         # Find the domain boundaries (this includes a check whether the sequence is in fact a GAIN)
         # Will return (None, None) if checks fail. 
-        self.start, self.subdomain_boundary = gaingrn.scripts.structure_utils.find_boundaries(self.complete_sse_dict, 
+        self.start, self.subdomain_boundary = gaingrn.utils.structure_utils.find_boundaries(self.complete_sse_dict, 
                                                                        self.end, 
                                                                        bracket_size=subdomain_bracket_size, 
                                                                        domain_threshold=domain_threshold,
@@ -527,7 +527,7 @@ class GainDomain:
             self.start = np.amin(np.array(self.complete_sse_dict["Strand"]))
         
         if debug:
-            print(f"[DEBUG] gain_classes.GainDomain : COMPARING SEQS\n\t {sequence = }\n\t{gaingrn.scripts.io.get_stride_seq(explicit_stride_file)[self.start:] = }")
+            print(f"[DEBUG] gain_classes.GainDomain : COMPARING SEQS\n\t {sequence = }\n\t{gaingrn.utils.io.get_stride_seq(explicit_stride_file)[self.start:] = }")
 
         # Initialize residue indices as list, starting form zero, indexing EXISTING residues including "X" etc.
         self.index = list(range(0, self.end-self.start+1))
@@ -550,7 +550,7 @@ class GainDomain:
                 # This is an edge case where the signal detection identifies a Sheet-segment in Subdomain A. Therefore, non-cons. GAIN domain.
                 print(f"[WARNING] gain_classes.GainDomain : {self.name}\nSEQUENCE LENGTH SHORTER THAN DETECTED GAIN BOUNDARIES.!\n"
                     f"IT WILL BE DECLARED INVALID.\n{len(sequence) = }\n{self.end-self.start = }")
-                self.sse_dict = gaingrn.scripts.structure_utils.cut_sse_dict(self.start, self.end, self.complete_sse_dict)
+                self.sse_dict = gaingrn.utils.structure_utils.cut_sse_dict(self.start, self.end, self.complete_sse_dict)
                 if self.subdomain_boundary is None :
                     self.subdomain_boundary = 0
                 #self.plot_helicality(savename=f"{self.name}_SEQSHORT_SKIP.png")
@@ -563,7 +563,7 @@ class GainDomain:
         if sequence and not is_truncated: 
             self.sequence = np.asarray(list(sequence[self.start:self.end+1]))
         if fasta_file and not is_truncated:
-            self.sequence = np.asarray(list(gaingrn.scripts.io.read_seq(fasta_file)))[self.start:self.end+1]
+            self.sequence = np.asarray(list(gaingrn.utils.io.read_seq(fasta_file)))[self.start:self.end+1]
         ''' Find the indices of the Alignment where each residue of the sequence is located.
             For base dataset, this will be the base dataset alignment,
             For new GAIN, this will be the alignment appended by the adding method.
@@ -576,7 +576,7 @@ class GainDomain:
         else:
             cut_truncation_map = None
 
-        self.alignment_indices = gaingrn.scripts.alignment_utils.get_indices(  name = self.name, 
+        self.alignment_indices = gaingrn.utils.alignment_utils.get_indices(  name = self.name, 
                                                         sequence = self.sequence, 
                                                         alignment_file = alignment_file, 
                                                         aln_cutoff = aln_cutoff, 
@@ -593,7 +593,7 @@ class GainDomain:
             return
 
         # Cut down the SSE dictionary down to the GAIN only
-        self.sse_dict = gaingrn.scripts.structure_utils.cut_sse_dict(self.start, self.end, self.complete_sse_dict)
+        self.sse_dict = gaingrn.utils.structure_utils.cut_sse_dict(self.start, self.end, self.complete_sse_dict)
         
         # Find the GPS residues (triad) based on the alignment column of gps-minus-one (GPS-1 N-terminal residue before cleavage site)
         self.GPS = GPS(self.alignment_indices, 
@@ -606,11 +606,11 @@ class GainDomain:
         # parse the Quality from the input quality LIST, not the quality file
         # The input as a list is deliberate to make the quality parameter more flexible,
         # You could input any kind of quality signal here
-        self.residue_quality = gaingrn.scripts.alignment_utils.get_quality(self.alignment_indices, quality)
+        self.residue_quality = gaingrn.utils.alignment_utils.get_quality(self.alignment_indices, quality)
 
         if self.hasSubdomain == True:
             # enumeration + evaluation of subdomain SSE composition
-            alpha, beta = gaingrn.scripts.structure_utils.get_subdomain_sse(self.sse_dict, 
+            alpha, beta = gaingrn.utils.structure_utils.get_subdomain_sse(self.sse_dict, 
                                                      self.subdomain_boundary,
                                                      self.start, 
                                                      self.end,
@@ -752,7 +752,7 @@ class GainDomain:
         signal = np.convolve(scored_seq, np.ones([bracket_size]), mode='same')
         if debug:
             print(signal)
-        boundaries = gaingrn.scripts.structure_utils.detect_signchange(signal, exclude_zero=True)
+        boundaries = gaingrn.utils.structure_utils.detect_signchange(signal, exclude_zero=True)
 
         # Initialize Figure
         fig = plt.figure(figsize=[8,2])
@@ -784,7 +784,7 @@ class GainDomain:
                 Name of the Output file
         Returns None
         '''
-        gaingrn.scripts.io.write2fasta(self.sequence, self.name, savename)
+        gaingrn.utils.io.write2fasta(self.sequence, self.name, savename)
 
     def write_gain_pdb(self, pdb_file, outfile=None):
 
@@ -946,7 +946,7 @@ class GPS:
         ----------
         None
         '''
-        minus_one_residue = gaingrn.scripts.structure_utils.detect_GPS(alignment_indices, gps_minus_one, debug=debug)
+        minus_one_residue = gaingrn.utils.structure_utils.detect_GPS(alignment_indices, gps_minus_one, debug=debug)
         #print(f"[DEBUG] gain_classes.GPS : {minus_one_residue = }, {start = }")
         if minus_one_residue is not None:
             #print(f"DEBUG: {start = }")
@@ -1106,8 +1106,8 @@ class GainDomainNoAln:
         if explicit_stride_file is None:
             explicit_stride_file = self.name.replace(".fa","")
 
-        self.complete_sse_dict = gaingrn.scripts.io.read_sse_loc(explicit_stride_file)
-        self.sse_sequence, self.outliers = gaingrn.scripts.io.read_sse_asg(explicit_stride_file)
+        self.complete_sse_dict = gaingrn.utils.io.read_sse_loc(explicit_stride_file)
+        self.sse_sequence, self.outliers = gaingrn.utils.io.read_sse_asg(explicit_stride_file)
 
         # If the detected intervals are provided, skip the validation step. Override any values of start, end and boundary.
 
@@ -1127,7 +1127,7 @@ class GainDomainNoAln:
             self.subdomain_boundary = subdomain_boundary
             self.end = end
         else:
-            self.start, self.subdomain_boundary = gaingrn.scripts.structure_utils.find_boundaries(self.complete_sse_dict, 
+            self.start, self.subdomain_boundary = gaingrn.utils.structure_utils.find_boundaries(self.complete_sse_dict, 
                                                                        self.end, 
                                                                        bracket_size=subdomain_bracket_size, 
                                                                        domain_threshold=domain_threshold,
@@ -1142,7 +1142,7 @@ class GainDomainNoAln:
             self.start = np.amin(np.array(self.complete_sse_dict["Strand"]))
         
         if debug:
-            print(f"[DEBUG] gain_classes.GainDomain : COMPARING SEQS\n\t {sequence = }\n\t{gaingrn.scripts.io.get_stride_seq(explicit_stride_file)[self.start:] = }")
+            print(f"[DEBUG] gain_classes.GainDomain : COMPARING SEQS\n\t {sequence = }\n\t{gaingrn.utils.io.get_stride_seq(explicit_stride_file)[self.start:] = }")
 
         # Initialize residue indices as list, starting form zero, indexing EXISTING residues including "X" etc.
         self.index = list(range(0, self.end-self.start+1))
@@ -1165,7 +1165,7 @@ class GainDomainNoAln:
                 # This is an edge case where the signal detection identifies a Sheet-segment in Subdomain A. Therefore, non-cons. GAIN domain.
                 print(f"[WARNING] gain_classes.GainDomain : {self.name}\nSEQUENCE LENGTH SHORTER THAN DETECTED GAIN BOUNDARIES.!\n"
                     f"IT WILL BE DECLARED INVALID.\n{len(sequence) = }\n{self.end-self.start = }")
-                self.sse_dict = gaingrn.scripts.structure_utils.cut_sse_dict(self.start, self.end, self.complete_sse_dict)
+                self.sse_dict = gaingrn.utils.structure_utils.cut_sse_dict(self.start, self.end, self.complete_sse_dict)
                 if self.subdomain_boundary is None :
                     self.subdomain_boundary = 0
                 #self.plot_helicality(savename=f"{self.name}_SEQSHORT_SKIP.png")
@@ -1178,14 +1178,14 @@ class GainDomainNoAln:
         if sequence and not is_truncated: 
             self.sequence = np.asarray(list(sequence[self.start:self.end+1]))
         if fasta_file and not is_truncated:
-            self.sequence = np.asarray(list(gaingrn.scripts.io.read_seq(fasta_file)))[self.start:self.end+1]
+            self.sequence = np.asarray(list(gaingrn.utils.io.read_seq(fasta_file)))[self.start:self.end+1]
 
         # Cut down the SSE dictionary down to the GAIN only
-        self.sse_dict = gaingrn.scripts.structure_utils.cut_sse_dict(self.start, self.end, self.complete_sse_dict)
+        self.sse_dict = gaingrn.utils.structure_utils.cut_sse_dict(self.start, self.end, self.complete_sse_dict)
 
         if self.hasSubdomain == True:
             # enumeration + evaluation of subdomain SSE composition
-            alpha, beta = gaingrn.scripts.structure_utils.get_subdomain_sse(self.sse_dict, 
+            alpha, beta = gaingrn.utils.structure_utils.get_subdomain_sse(self.sse_dict, 
                                                      self.subdomain_boundary,
                                                      self.start, 
                                                      self.end,
@@ -1306,7 +1306,7 @@ class GainDomainNoAln:
         signal = np.convolve(scored_seq, np.ones([bracket_size]), mode='same')
         if debug:
             print(signal)
-        boundaries = gaingrn.scripts.structure_utils.detect_signchange(signal, exclude_zero=True)
+        boundaries = gaingrn.utils.structure_utils.detect_signchange(signal, exclude_zero=True)
 
         # Initialize Figure
         fig = plt.figure(figsize=[8,2])
@@ -1341,7 +1341,7 @@ class GainDomainNoAln:
                 Name of the Output file
         Returns None
         '''
-        gaingrn.scripts.io.write2fasta(self.sequence, self.name, savename)
+        gaingrn.utils.io.write2fasta(self.sequence, self.name, savename)
 
     def write_gain_pdb(self, pdb_file, outfile=None):
 
@@ -1464,7 +1464,7 @@ class FilterCollection:
             # Compile all sequence files to a sequences object
             sequences = np.empty([len(sequence_files)])
             for i, seq_file in enumerate(sequence_files):
-                name, seq = gaingrn.scripts.io.read_seq(seq_file, return_name=True)
+                name, seq = gaingrn.utils.io.read_seq(seq_file, return_name=True)
                 sequences[i] = (name, seq)
         elif (sequences is not None):
             print(f"Found sequences object.")
@@ -1592,7 +1592,7 @@ class FilterCollection:
         out_dict = {}
         for gain in self.collection:
             sse_alignment_row = np.full([aln_cutoff], fill_value='-', dtype='<U1')
-            mapper = gaingrn.scripts.alignment_utils.get_indices(gain.name, gain.sequence, input_alignment, aln_cutoff)
+            mapper = gaingrn.utils.alignment_utils.get_indices(gain.name, gain.sequence, input_alignment, aln_cutoff)
             for index, resid in enumerate(gain.sse_sequence):
                 sse_alignment_row[mapper[index]] = resid
             out_dict[gain.name[:-3]] = sse_alignment_row

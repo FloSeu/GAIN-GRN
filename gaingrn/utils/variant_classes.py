@@ -26,8 +26,8 @@ class MutationAnalysis:
                     self.occupancy_dict[key] += 1
 
         # Inititalize des compacted SNP and CANCER MUTATION DATA HERE (not generalized via Label)
-        self.mutations, self.mut_counts = gaingrn.scripts.mutation_utils.compose_vars(appended_gain_collection, jsons, 'x', 'aa_change', fasta_offsets, merge_unique=True)
-        self.snps,      self.snp_counts = gaingrn.scripts.mutation_utils.compose_vars(appended_gain_collection, csvs, 'resid', 'resname', fasta_offsets, merge_unique=True)
+        self.mutations, self.mut_counts = gaingrn.utils.mutation_utils.compose_vars(appended_gain_collection, jsons, 'x', 'aa_change', fasta_offsets, merge_unique=True)
+        self.snps,      self.snp_counts = gaingrn.utils.mutation_utils.compose_vars(appended_gain_collection, csvs, 'resid', 'resname', fasta_offsets, merge_unique=True)
 
         # Here, we initialize the GENERALIZED MUTATIONS (per GRN label)
         for gain_ndx, gain in enumerate(appended_gain_collection.collection):
@@ -37,7 +37,7 @@ class MutationAnalysis:
             fasta_offset = fasta_offsets[gain_ndx]
 
             # Retrieve mutations for respective receptor
-            positions, gain_mutation_dict = gaingrn.scripts.mutation_utils.extract_variants(gain, jsons, 'x')
+            positions, gain_mutation_dict = gaingrn.utils.mutation_utils.extract_variants(gain, jsons, 'x')
             
             # Find all mutations whose RESID (fasta) matches the corrected INTERVAL(for fasta resids)
             within = [pos for pos in positions if pos in range(fasta_offset, fasta_offset + 1 + gain.end - gain.start)]
@@ -98,10 +98,10 @@ class MutationAnalysis:
                 x_positions = [int(x.split('.')[-1]) for x in varkeys]
                 x_range = range(min(x_positions), max(x_positions)+1)
 
-                mut_y = gaingrn.scripts.mutation_utils.compose_y(x_range, sse, self.mut_counts)
-                var_y = gaingrn.scripts.mutation_utils.compose_y(x_range, sse, self.snp_counts)
+                mut_y = gaingrn.utils.mutation_utils.compose_y(x_range, sse, self.mut_counts)
+                var_y = gaingrn.utils.mutation_utils.compose_y(x_range, sse, self.snp_counts)
             
-            score_y = gaingrn.scripts.mutation_utils.score(mut_y,var_y)
+            score_y = gaingrn.utils.mutation_utils.score(mut_y,var_y)
 
             for i in range(len(x_range)):
                 varmut_arr.append([sse, x_range[i], int(mut_y[i]), int(var_y[i]), score_y[i]])
