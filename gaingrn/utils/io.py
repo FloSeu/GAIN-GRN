@@ -672,3 +672,20 @@ def get_gain(identifier, a_gain_collection, return_index=False):
             return gain
     print("ERROR: GAIN not found!")
     return None
+
+def check_3rd_party(GESAMT_BIN, STRIDE_BIN):
+    GESAMT_BIN = __run_check(GESAMT_BIN, 'GESAMT_BIN', '/home/username/lib/xtal/ccp4-8.0/ccp4-8.0/bin/gesamt')
+    STRIDE_BIN = __run_check(STRIDE_BIN, 'STRIDE_BIN', '/home/username/lib/stride/stride')
+    return GESAMT_BIN, STRIDE_BIN
+
+def __run_check(bin, bin_name, example_path):
+    if bin is None:
+        bin = os.environ.get(bin_name)
+        if bin is None:
+            bin = input(
+                f"You need a '{bin_name.rstrip('_BIN'.lower())}' binary in your system, e.g. in '{example_path}' ."
+                f"\nPlease type the path to the binary or set the value of '{bin_name}=None' above this code-block to the path'.")
+    else:
+        if not os.path.exists(bin):
+            raise FileNotFoundError(f"Can't find the '{bin_name}' you provided: '{bin}'")
+    return bin
