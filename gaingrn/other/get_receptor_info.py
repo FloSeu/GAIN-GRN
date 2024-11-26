@@ -1,9 +1,13 @@
 ## get_receptor_info.py
 # 
 # This is a script to extract information about a specific receptor from the GAIN-GRN indexing and the set of GainDomain objects.
-
+import sys
 import pandas as pd
 import numpy as np
+# LOCAL IMPORTS
+import gaingrn.utils.gain_classes
+# FIX FOR CHANGED PICKLE PATHING
+sys.modules['gaingrn.scripts.gain_classes'] = gaingrn.utils.gain_classes
 
 if __name__ == "main":
 

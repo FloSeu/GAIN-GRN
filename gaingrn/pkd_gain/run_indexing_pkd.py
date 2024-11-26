@@ -3,10 +3,13 @@
 # due to jupyter notebooks failure to successfully run mp.Pool
 
 # DEPENDENCIES
-import glob, pickle, os
+import glob, pickle, os, sys
 import pandas as pd
-
+# LOCAL IMPORTS
+import gaingrn.utils.gain_classes
 from gaingrn.utils.indexing_classes import StAlIndexing
+# FIX FOR CHANGED PICKLE PATHING
+sys.modules['gaingrn.scripts.gain_classes'] = gaingrn.utils.gain_classes
 
 try: 
     GESAMT_BIN = os.environ.get('GESAMT_BIN')
